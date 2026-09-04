@@ -161,6 +161,13 @@ async function handleAIRequestStream(request, port) {
     }
   }
 
+  let isAborted = false;
+  if (port && port.onDisconnect) {
+      port.onDisconnect.addListener(() => {
+          isAborted = true;
+      });
+  }
+
   if (model === 'gemini') {
     if (!geminiApiKey) throw new Error("Gemini API Key is missing. Please set it in settings.");
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
@@ -172,13 +179,16 @@ async function handleAIRequestStream(request, port) {
     }
     chatHistory.push({ role: "user", parts: userParts });
 
-    let systemInstruction = "You are an autonomous browser agent. You can read pages, click elements, navigate, and perform searches to fulfill the user's requests.";
+    let systemInstruction = "You are an autonomous browser agent. You can read pages, click elements, navigate, and perform searches to fulfill the user's requests. IMPORTANT: When interacting with the page (click_element, type_text), prefer using the `data-ai-id` attribute found in the page context. For example, if you see `<button data-ai-id=\"5\">`, use `5` or `[data-ai-id=\"5\"]` as the selector.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}\n----------------------------\nUse this context to answer questions about the current page.`;
 
     let isDone = false;
     let finalAiText = "";
     
-    while(!isDone) {
+    while(!isDone && !isAborted) {
+      const abortController = new AbortController();
+      if (isAborted) break;
+
       const responseStream = await ai.models.generateContentStream({
         model: geminiModel || "gemini-2.5-flash",
         contents: chatHistory,
@@ -187,29 +197,46 @@ async function handleAIRequestStream(request, port) {
       
       let hasToolCalls = false;
       let currentToolCalls = [];
+      let modelParts = [];
       
       for await (const chunk of responseStream) {
+        if (isAborted) break;
+        if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
+            modelParts.push(...chunk.candidates[0].content.parts);
+        }
+
         if (chunk.functionCalls && chunk.functionCalls.length > 0) {
           hasToolCalls = true;
           currentToolCalls.push(...chunk.functionCalls);
-        } else if (chunk.text) {
+        }
+        
+        if (chunk.text) {
           finalAiText += chunk.text;
           port.postMessage({ chunk: chunk.text });
         }
       }
       
+      if (isAborted) break;
+
       if (hasToolCalls) {
+        // Update UI with status
+        const actionNames = currentToolCalls.map(c => c.name).join(', ');
+        port.postMessage({ status: `Executing: ${actionNames}...` });
+
         chatHistory.push({
            role: "model",
-           parts: currentToolCalls.map(call => ({ functionCall: call }))
+           parts: modelParts.length > 0 ? modelParts : currentToolCalls.map(call => ({ functionCall: call }))
         });
         
         const functionResponses = [];
         for (const call of currentToolCalls) {
+          if (isAborted) break;
           const result = await executeTool(call.name, call.args);
           functionResponses.push({ name: call.name, response: result });
         }
         
+        if (isAborted) break;
+
         chatHistory.push({
           role: "user",
           parts: functionResponses.map(r => ({ functionResponse: { name: r.name, response: r.response } }))
@@ -219,6 +246,14 @@ async function handleAIRequestStream(request, port) {
       }
     }
     
+    if (isAborted) {
+        if (!finalAiText) finalAiText = "Generation stopped by user.";
+        else finalAiText += "\n\n*[Stopped]*";
+        // Can't post back because port is dead, just save history
+        chatHistory.push({ role: "model", parts: [{ text: finalAiText }] });
+        return;
+    }
+
     if (!finalAiText) {
        finalAiText = "Action completed.";
        port.postMessage({ chunk: finalAiText });
@@ -229,7 +264,7 @@ async function handleAIRequestStream(request, port) {
   
   else if (model === 'openai') {
     if (!openAiApiKey) throw new Error("OpenAI API Key is missing.");
-    let systemInstruction = "You are an autonomous browser agent. Help the user with their queries.";
+    let systemInstruction = "You are an autonomous browser agent. Help the user with their queries. IMPORTANT: When interacting with the page (click_element, type_text), prefer using the `data-ai-id` attribute found in the page context as the selector (e.g. `5` or `[data-ai-id=\"5\"]`).";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
     const messages = [{ role: 'system', content: systemInstruction }];
@@ -254,8 +289,15 @@ async function handleAIRequestStream(request, port) {
     });
     
     if (!res.ok) {
-       const err = await res.json();
-       throw new Error(err.error?.message || "OpenAI error");
+       const text = await res.text();
+       let errMsg = `OpenAI Error (HTTP ${res.status})`;
+       try {
+           const err = JSON.parse(text);
+           errMsg = err.error?.message || JSON.stringify(err.error) || errMsg;
+       } catch(e) {
+           errMsg += `: ${text.slice(0, 100)}`;
+       }
+       throw new Error(errMsg);
     }
     
     const reader = res.body.getReader();
@@ -288,7 +330,7 @@ async function handleAIRequestStream(request, port) {
   
   else if (model === 'huggingface') {
     if (!hfApiKey) throw new Error("Hugging Face API Key is missing.");
-    let systemInstruction = "You are a helpful AI assistant.";
+    let systemInstruction = "You are an autonomous browser agent. Help the user with their queries. IMPORTANT: When interacting with the page, prefer using the `data-ai-id` attribute found in the page context as the selector (e.g. `5` or `[data-ai-id=\"5\"]`).";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
     const messages = [{ role: 'system', content: systemInstruction }];
@@ -304,8 +346,21 @@ async function handleAIRequestStream(request, port) {
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hfApiKey}` },
       body: JSON.stringify({ model: activeHfModel, messages, max_tokens: 500 })
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    
+    const textResp = await res.text();
+    let data;
+    try {
+        data = JSON.parse(textResp);
+    } catch(e) {
+        throw new Error(`Hugging Face Error (HTTP ${res.status}): ${textResp.slice(0, 100)}`);
+    }
+    
+    if (!res.ok || data.error) {
+       let errMsg = data.error;
+       if (typeof errMsg === 'object') errMsg = errMsg.message || JSON.stringify(errMsg);
+       throw new Error(errMsg || `Hugging Face Error (HTTP ${res.status})`);
+    }
+    
     const text = data.choices[0].message.content;
     
     chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
@@ -316,7 +371,7 @@ async function handleAIRequestStream(request, port) {
   
   else if (model === 'ollama') {
     if (!ollamaUrl) throw new Error("Ollama URL is missing.");
-    let systemInstruction = "You are a helpful AI assistant.";
+    let systemInstruction = "You are an autonomous browser agent. Help the user with their queries. IMPORTANT: When interacting with the page, prefer using the `data-ai-id` attribute found in the page context as the selector (e.g. `5` or `[data-ai-id=\"5\"]`).";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
     const messages = [{ role: 'system', content: systemInstruction }];
@@ -340,8 +395,20 @@ async function handleAIRequestStream(request, port) {
         });
         return nativeRes;
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message || data.error);
+    
+    const textResp = await res.text();
+    let data;
+    try {
+        data = JSON.parse(textResp);
+    } catch(e) {
+        throw new Error(`Ollama Error (HTTP ${res.status || 'unknown'}): ${textResp.slice(0, 100)}`);
+    }
+
+    if (!res.ok || data.error) {
+       let errMsg = data.error;
+       if (typeof errMsg === 'object') errMsg = errMsg.message || JSON.stringify(errMsg);
+       throw new Error(errMsg || `Ollama Error (HTTP ${res.status})`);
+    }
     
     const text = data.message ? data.message.content : data.choices[0].message.content;
     

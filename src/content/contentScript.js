@@ -1,6 +1,78 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   try {
+    // Robust selector function that handles data-ai-id, CSS selectors, and fuzzy attribute/text matching
+    const findElement = (selector) => {
+      if (!selector) return null;
+      
+      // 1. Check for pure numeric data-ai-id
+      if (/^\d+$/.test(selector)) {
+        const el = document.querySelector(`[data-ai-id="${selector}"]`);
+        if (el) return el;
+      }
+      
+      // 2. Try standard CSS querySelector
+      try {
+        const el = document.querySelector(selector);
+        if (el) return el;
+      } catch(e) {
+        // Selector was invalid CSS, we will fallback to fuzzy matching
+      }
+      
+      // 3. Fuzzy matching across common interactive attributes
+      const lowerSelector = selector.toLowerCase().trim();
+      const interactives = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])');
+      
+      // Phase A: Exact match on important attributes or text
+      for (const el of interactives) {
+        const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+        const name = (el.getAttribute('name') || '').toLowerCase();
+        const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
+        const id = (el.id || '').toLowerCase();
+        const type = (el.getAttribute('type') || '').toLowerCase();
+        const text = (el.textContent || '').toLowerCase().trim();
+        
+        if (
+          ariaLabel === lowerSelector || 
+          name === lowerSelector || 
+          placeholder === lowerSelector || 
+          id === lowerSelector ||
+          text === lowerSelector ||
+          type === lowerSelector
+        ) {
+          return el;
+        }
+      }
+      
+      // Phase B: Partial match fallback
+      for (const el of interactives) {
+        const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+        const name = (el.getAttribute('name') || '').toLowerCase();
+        const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
+        const text = (el.textContent || '').toLowerCase().trim();
+        
+        if (
+          (ariaLabel && ariaLabel.includes(lowerSelector)) || 
+          (name && name.includes(lowerSelector)) || 
+          (placeholder && placeholder.includes(lowerSelector)) || 
+          (text && text.includes(lowerSelector))
+        ) {
+          return el;
+        }
+      }
+      
+      return null;
+    };
+
     if (request.action === "get_page_context" || request.action === "read_page") {
+      // Assign unique IDs to interactive elements in the live DOM for reliable AI targeting
+      let aiIndex = 1;
+      const interactives = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])');
+      interactives.forEach(el => {
+        if (!el.hasAttribute('data-ai-id')) {
+          el.setAttribute('data-ai-id', aiIndex++);
+        }
+      });
+
       // Extract visible text and structure
       const clone = document.body.cloneNode(true);
       
@@ -16,26 +88,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           if (text) structureText += "  ".repeat(depth) + text + "\n";
         } else if (node.nodeType === Node.ELEMENT_NODE) {
           const tag = node.tagName.toLowerCase();
+          const aiId = node.getAttribute('data-ai-id');
           const id = node.id ? `#${node.id}` : "";
-          const classNames = node.className && typeof node.className === 'string' ? `.${node.className.split(' ').filter(c => c).join('.')}` : "";
+          const role = node.getAttribute('role') ? ` [role="${node.getAttribute('role')}"]` : "";
+          const ariaLabel = node.getAttribute('aria-label') ? ` [aria-label="${node.getAttribute('aria-label')}"]` : "";
+          const nameAttr = node.getAttribute('name') ? ` [name="${node.getAttribute('name')}"]` : "";
           
-          // Only add structure lines for semantic tags or tags with IDs/classes
-          if (['h1','h2','h3','h4','h5','h6','p','a','button','input','select','textarea','article','section','nav','main'].includes(tag) || id) {
-             let nodeInfo = `<${tag}${id}${classNames.substring(0, 50)}${classNames.length > 50 ? '...' : ''}>`;
-             if (tag === 'a' && node.href) nodeInfo += ` [href="${node.href}"]`;
-             if (tag === 'img' && node.src) nodeInfo += ` [src="${node.src}"] [alt="${node.alt || ''}"]`;
-             if (['input', 'textarea'].includes(tag)) nodeInfo += ` [type="${node.type}"] [name="${node.name}"] [placeholder="${node.placeholder || ''}"]`;
+          const isInteractive = aiId !== null;
+          
+          if (['h1','h2','h3','h4','h5','h6','p','article','section','nav','main'].includes(tag) || isInteractive) {
+             let nodeInfo = `<${tag}`;
+             if (aiId) nodeInfo += ` data-ai-id="${aiId}"`; // ALWAYS show data-ai-id if present
+             if (id && !aiId) nodeInfo += id; // only show id if no ai-id to save space
+             nodeInfo += `${role}${ariaLabel}${nameAttr}>`;
+             
+             if (tag === 'a' && node.href) nodeInfo += ` [href="${node.href.replace(window.location.origin, '')}"]`;
+             if (tag === 'img' && node.src) nodeInfo += ` [alt="${node.alt || ''}"]`;
+             if (['input', 'textarea'].includes(tag)) nodeInfo += ` [type="${node.type}"] [placeholder="${node.placeholder || ''}"]`;
              
              structureText += "  ".repeat(depth) + nodeInfo + "\n";
              
-             // Process children with increased depth
              for (let i = 0; i < node.childNodes.length; i++) {
                walkDOM(node.childNodes[i], depth + 1);
              }
              
              structureText += "  ".repeat(depth) + `</${tag}>\n`;
           } else {
-             // For divs and spans, just process children without adding depth
              for (let i = 0; i < node.childNodes.length; i++) {
                walkDOM(node.childNodes[i], depth);
              }
@@ -57,35 +135,66 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     } 
     else if (request.action === "click_element") {
-      const el = document.querySelector(request.args.selector);
+      const el = findElement(request.args.selector);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // slight delay to allow scroll
         setTimeout(() => {
           el.click();
-          sendResponse({ success: true, message: `Clicked element ${request.args.selector}` });
+          sendResponse({ success: true, message: `Clicked element ${selector}` });
         }, 300);
       } else {
-        sendResponse({ error: `Element not found: ${request.args.selector}` });
+        sendResponse({ error: `Element not found: ${selector}` });
       }
     } 
     else if (request.action === "type_text") {
-      const el = document.querySelector(request.args.selector);
+      const el = findElement(request.args.selector);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setTimeout(() => {
-          el.focus();
-          el.value = request.args.text;
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-          sendResponse({ success: true, message: `Typed text into ${request.args.selector}` });
+          try {
+            el.focus();
+            // Use native value setter for React/Vue compatibility
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+              window.HTMLInputElement.prototype,
+              "value"
+            )?.set;
+            const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+              window.HTMLTextAreaElement.prototype,
+              "value"
+            )?.set;
+
+            const textToType = request.args.text;
+            if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
+              nativeTextAreaValueSetter.call(el, textToType);
+            } else if (nativeInputValueSetter) {
+              nativeInputValueSetter.call(el, textToType);
+            } else {
+              el.value = textToType;
+            }
+            
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Verification step to ensure value was set correctly
+            setTimeout(() => {
+              const currentValue = el.value || "";
+              if (currentValue === textToType || currentValue.includes(textToType)) {
+                sendResponse({ success: true, message: `Successfully typed text into ${request.args.selector}` });
+              } else {
+                sendResponse({ error: `Verification failed for ${request.args.selector}. Expected "${textToType}", but got "${currentValue}". Form may be rejecting input.` });
+              }
+            }, 150);
+          } catch(err) {
+             sendResponse({ error: `Error typing in ${request.args.selector}: ${err.message}` });
+          }
         }, 300);
       } else {
         sendResponse({ error: `Element not found: ${request.args.selector}` });
       }
     }
     else if (request.action === "press_enter") {
-      const el = document.querySelector(request.args.selector);
+      const el = findElement(request.args.selector);
       if (el) {
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
         el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, bubbles: true }));
