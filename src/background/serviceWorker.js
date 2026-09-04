@@ -118,7 +118,11 @@ chrome.runtime.onConnect.addListener((port) => {
         try {
           await handleAIRequestStream(message, port);
         } catch (error) {
-          port.postMessage({ error: error.message || 'AI request failed' });
+          let errorMsg = error.message || 'AI request failed';
+          if (errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+             errorMsg = "API Rate Limit Exceeded: You have reached your current quota limit for this model. Please wait a minute and try again, or switch to a different model in settings.";
+          }
+          port.postMessage({ error: errorMsg });
           port.postMessage({ done: true });
         }
       }
@@ -128,6 +132,68 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // Conversation History state
 let chatHistory = [];
+
+async function executeWithRetry(apiCall, port, maxRetries = 3) {
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      return await apiCall();
+    } catch (error) {
+      const errorMsg = error.message || '';
+      const isRateLimit = error.status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota');
+      
+      if (!isRateLimit || retries >= maxRetries - 1) {
+        throw error;
+      }
+      
+      let delay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
+      
+      const retryMatch = errorMsg.match(/retry in (\d+(?:\.\d+)?)s/i);
+      if (retryMatch) {
+         delay = parseFloat(retryMatch[1]) * 1000 + 500; // Add 500ms buffer
+      }
+      
+      if (port) {
+          port.postMessage({ status: `Rate limit hit. Retrying in ${Math.round(delay/1000)}s...` });
+      }
+      console.warn(`API Rate limit. Retrying in ${delay}ms...`, error);
+      
+      await new Promise(r => setTimeout(r, delay));
+      retries++;
+    }
+  }
+}
+
+async function fetchWithRetry(url, options, port, maxRetries = 3) {
+  let retries = 0;
+  while (retries < maxRetries) {
+    const res = await fetch(url, options);
+    
+    if (res.status === 429) {
+      if (retries >= maxRetries - 1) {
+        return res; 
+      }
+      
+      let delay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
+      const retryAfter = res.headers.get('Retry-After');
+      if (retryAfter) {
+         const parsed = parseInt(retryAfter, 10);
+         if (!isNaN(parsed)) delay = parsed * 1000 + 500;
+      }
+      
+      if (port) {
+          port.postMessage({ status: `Rate limit hit. Retrying in ${Math.round(delay/1000)}s...` });
+      }
+      console.warn(`Fetch 429 Rate limit. Retrying in ${delay}ms...`);
+      
+      await new Promise(r => setTimeout(r, delay));
+      retries++;
+      continue;
+    }
+    
+    return res;
+  }
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'AI_CHAT_REQUEST') {
@@ -145,7 +211,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleAIRequestStream(request, port) {
-  const { message: userMessage, domContext, includeScreenshot, model, geminiApiKey, geminiModel, openAiApiKey, openAiModel, hfApiKey, hfModel, ollamaUrl, ollamaModel } = request;
+  const { message: userMessage, domContext, includeScreenshot, thinkMode, model, geminiApiKey, geminiModel, openAiApiKey, openAiModel, hfApiKey, hfModel, ollamaUrl, ollamaModel } = request;
   
   let screenshotDataUrl = null;
   if (includeScreenshot) {
@@ -180,6 +246,7 @@ async function handleAIRequestStream(request, port) {
     chatHistory.push({ role: "user", parts: userParts });
 
     let systemInstruction = "You are an autonomous browser agent. You can read pages, click elements, navigate, and perform searches to fulfill the user's requests. IMPORTANT: When interacting with the page (click_element, type_text), prefer using the `data-ai-id` attribute found in the page context. For example, if you see `<button data-ai-id=\"5\">`, use `5` or `[data-ai-id=\"5\"]` as the selector.";
+    if (thinkMode) systemInstruction += "\n\nTHINKING MODE ENABLED: Before providing your final answer or taking any action, you MUST output a detailed, step-by-step reasoning process. Wrap your reasoning using markdown blockquotes (e.g. starting lines with >). Ensure you analyze the user's request and the page context thoroughly before acting.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}\n----------------------------\nUse this context to answer questions about the current page.`;
 
     let isDone = false;
@@ -189,11 +256,11 @@ async function handleAIRequestStream(request, port) {
       const abortController = new AbortController();
       if (isAborted) break;
 
-      const responseStream = await ai.models.generateContentStream({
+      const responseStream = await executeWithRetry(() => ai.models.generateContentStream({
         model: geminiModel || "gemini-2.5-flash",
         contents: chatHistory,
         config: { tools: browserTools, systemInstruction }
-      });
+      }), port, 4);
       
       let hasToolCalls = false;
       let currentToolCalls = [];
@@ -265,6 +332,7 @@ async function handleAIRequestStream(request, port) {
   else if (model === 'openai') {
     if (!openAiApiKey) throw new Error("OpenAI API Key is missing.");
     let systemInstruction = "You are an autonomous browser agent. Help the user with their queries. IMPORTANT: When interacting with the page (click_element, type_text), prefer using the `data-ai-id` attribute found in the page context as the selector (e.g. `5` or `[data-ai-id=\"5\"]`).";
+    if (thinkMode) systemInstruction += "\n\nTHINKING MODE ENABLED: Before providing your final answer or taking any action, you MUST output a detailed, step-by-step reasoning process. Wrap your reasoning using markdown blockquotes (e.g. starting lines with >). Ensure you analyze the user's request and the page context thoroughly before acting.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
     const messages = [{ role: 'system', content: systemInstruction }];
@@ -282,11 +350,11 @@ async function handleAIRequestStream(request, port) {
     }
     messages.push({ role: 'user', content: contentForUser });
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openAiApiKey}` },
       body: JSON.stringify({ model: openAiModel || 'gpt-4o', messages, stream: true })
-    });
+    }, port, 4);
     
     if (!res.ok) {
        const text = await res.text();
@@ -331,6 +399,7 @@ async function handleAIRequestStream(request, port) {
   else if (model === 'huggingface') {
     if (!hfApiKey) throw new Error("Hugging Face API Key is missing.");
     let systemInstruction = "You are an autonomous browser agent. Help the user with their queries. IMPORTANT: When interacting with the page, prefer using the `data-ai-id` attribute found in the page context as the selector (e.g. `5` or `[data-ai-id=\"5\"]`).";
+    if (thinkMode) systemInstruction += "\n\nTHINKING MODE ENABLED: Before providing your final answer or taking any action, you MUST output a detailed, step-by-step reasoning process. Wrap your reasoning using markdown blockquotes (e.g. starting lines with >). Ensure you analyze the user's request and the page context thoroughly before acting.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
     const messages = [{ role: 'system', content: systemInstruction }];
@@ -341,11 +410,11 @@ async function handleAIRequestStream(request, port) {
     messages.push({ role: 'user', content: userMessage });
 
     const activeHfModel = hfModel || 'mistralai/Mistral-Nemo-Instruct-2407';
-    const res = await fetch(`https://api-inference.huggingface.co/models/${activeHfModel}/v1/chat/completions`, {
+    const res = await fetchWithRetry(`https://api-inference.huggingface.co/models/${activeHfModel}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hfApiKey}` },
       body: JSON.stringify({ model: activeHfModel, messages, max_tokens: 500 })
-    });
+    }, port, 4);
     
     const textResp = await res.text();
     let data;
@@ -372,6 +441,7 @@ async function handleAIRequestStream(request, port) {
   else if (model === 'ollama') {
     if (!ollamaUrl) throw new Error("Ollama URL is missing.");
     let systemInstruction = "You are an autonomous browser agent. Help the user with their queries. IMPORTANT: When interacting with the page, prefer using the `data-ai-id` attribute found in the page context as the selector (e.g. `5` or `[data-ai-id=\"5\"]`).";
+    if (thinkMode) systemInstruction += "\n\nTHINKING MODE ENABLED: Before providing your final answer or taking any action, you MUST output a detailed, step-by-step reasoning process. Wrap your reasoning using markdown blockquotes (e.g. starting lines with >). Ensure you analyze the user's request and the page context thoroughly before acting.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
     const messages = [{ role: 'system', content: systemInstruction }];
@@ -382,17 +452,17 @@ async function handleAIRequestStream(request, port) {
     messages.push({ role: 'user', content: userMessage });
 
     // Use /api/chat endpoint which is OpenAI compatible format for Ollama
-    const res = await fetch(`${ollamaUrl.replace(/\/$/, '')}/v1/chat/completions`, {
+    const res = await fetchWithRetry(`${ollamaUrl.replace(/\/$/, '')}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: ollamaModel || 'llama3', messages })
-    }).catch(async (e) => {
+    }, port, 4).catch(async (e) => {
         // Fallback to native ollama api if OpenAI wrapper isn't working
-        const nativeRes = await fetch(`${ollamaUrl.replace(/\/$/, '')}/api/chat`, {
+        const nativeRes = await fetchWithRetry(`${ollamaUrl.replace(/\/$/, '')}/api/chat`, {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ model: ollamaModel || 'llama3', messages, stream: false })
-        });
+        }, port, 4);
         return nativeRes;
     });
     
