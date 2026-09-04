@@ -1,0 +1,38 @@
+name: Build Chrome Extension
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-extension:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Build extension
+        run: |
+          npm run build
+
+      - name: Package extension
+        run: |
+          zip -r AI-Browser-Copilot-extension.zip dist
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Browser-Copilot-extension
+          path: AI-Browser-Copilot-extension.zip
