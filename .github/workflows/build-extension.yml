@@ -28,8 +28,6 @@ jobs:
       - name: Create clean Chrome extension package
         run: |
           rm -rf release
-          rm -f AI-Browser-Copilot-extension.zip
-
           mkdir release
 
           cp manifest.json release/
@@ -43,17 +41,15 @@ jobs:
           test -f release/src/background/serviceWorker.js
           test -f release/src/content/contentScript.js
 
-          cd release
-          zip -r ../AI-Browser-Copilot-extension.zip . -x '*.DS_Store'
-
       - name: Verify package structure
         run: |
-          unzip -l AI-Browser-Copilot-extension.zip
-          unzip -p AI-Browser-Copilot-extension.zip manifest.json > /tmp/manifest.json
-          test -s /tmp/manifest.json
+          test -f release/manifest.json
+          test -f release/src/background/serviceWorker.js
+          test -f release/src/content/contentScript.js
+          find release -maxdepth 2 -type f
 
-      - name: Upload extension artifact
+      - name: Upload unpacked extension folder
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Browser-Copilot-v0.1.0
-          path: AI-Browser-Copilot-extension.zip
+          name: AI-Browser-Copilot-v0.1.0-unpacked
+          path: release/
