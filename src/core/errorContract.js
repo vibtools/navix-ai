@@ -2,6 +2,15 @@ export const ErrorCode = Object.freeze({
   CANCELLED: 'REQUEST_CANCELLED',
   INVALID_REQUEST: 'INVALID_REQUEST',
   PORT_DISCONNECTED: 'PORT_DISCONNECTED',
+  PROVIDER_UNAVAILABLE: 'PROVIDER_UNAVAILABLE',
+  PROVIDER_AUTH_FAILED: 'PROVIDER_AUTH_FAILED',
+  PROVIDER_RATE_LIMITED: 'PROVIDER_RATE_LIMITED',
+  PROVIDER_MODEL_UNSUPPORTED: 'PROVIDER_MODEL_UNSUPPORTED',
+  PROVIDER_CAPABILITY_UNSUPPORTED: 'PROVIDER_CAPABILITY_UNSUPPORTED',
+  PROVIDER_RESPONSE_INVALID: 'PROVIDER_RESPONSE_INVALID',
+  STREAM_PROTOCOL_ERROR: 'STREAM_PROTOCOL_ERROR',
+  TOOL_CALL_INVALID: 'TOOL_CALL_INVALID',
+  TOOL_RESULT_UNVERIFIED: 'TOOL_RESULT_UNVERIFIED',
   STORAGE_DATA_INVALID: 'STORAGE_DATA_INVALID',
   STORAGE_READ_FAILED: 'STORAGE_READ_FAILED',
   STORAGE_QUOTA_EXCEEDED: 'STORAGE_QUOTA_EXCEEDED',
@@ -16,6 +25,8 @@ export class AppError extends Error {
     this.name = 'AppError';
     this.code = code;
     this.retryable = Boolean(options.retryable);
+    this.source = typeof options.source === 'string' ? options.source : null;
+    this.status = Number.isInteger(options.status) ? options.status : null;
   }
 }
 
@@ -40,6 +51,7 @@ export function toErrorPayload(error, fallbackCode = ErrorCode.UNKNOWN) {
   return {
     code: normalized.code,
     message: normalized.message,
-    retryable: normalized.retryable
+    retryable: normalized.retryable,
+    ...(normalized.source ? { source: normalized.source } : {})
   };
 }

@@ -53,13 +53,20 @@ Responsible for:
 - `requestLifecycle.js`: one-terminal-message port lifecycle, cancellation, and abortable delays.
 - `appStorage.js`: serialized completion-aware Chrome/IndexedDB/localStorage access with legacy compatibility.
 - `errorContract.js`: stable safe core error codes and payloads.
+- `providerContract.js`: provider/model/credential isolation and normalized tool-call shapes.
+- `promptContext.js`: single application of system/custom/language/page/file/screenshot inputs.
+- `sseParser.js`: stateful fragmented Server-Sent Events parsing.
 
 ### AI Provider Layer
 
-Supports:
-- Gemini
-- GPT
-- Custom AI endpoints
+`providerRunner.js` is the single extension/server orchestrator. It performs bounded provider retries, zero-output-only fallback, capability checks, shared tool execution, and normalized completion. Provider-specific protocol handling is isolated in adapters:
+
+- `geminiAdapter.js`
+- `openAiAdapter.js`
+- `huggingFaceAdapter.js` using the Inference Providers router
+- `ollamaAdapter.js` using OpenAI compatibility with native `/api/chat` fallback
+
+The background service worker injects the Chrome browser-tool executor. The web/server facade uses the same provider runner without Chrome tools, preserving one response/error contract rather than duplicating provider logic.
 
 ## Design Principle
 

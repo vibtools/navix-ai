@@ -6,9 +6,9 @@
 | --- | --- |
 | Frozen source | `f8f0817c93fa2cfa4ccca85c2cad051a2ca43e6f` |
 | Total phases | 4 |
-| Completed | 1 |
-| Active phase | None — Phase 02 approval gate |
-| Remaining | 3 |
+| Completed | 2 |
+| Active phase | None — Phase 03 approval gate |
+| Remaining | 2 |
 | Build/ZIP workflow | Paused until Phase 04 release gate |
 | Production release | Not ready |
 
@@ -19,8 +19,8 @@ The baseline was verified, the four-phase roadmap locked, findings registered, s
 | Phase | Status | Planned outcome | Completion evidence |
 | --- | --- | --- | --- |
 | 01 — Deterministic Core and State Integrity | Completed | Build/state/storage/session/selector/cancellation integrity | 19/19 tests, lint/build/audit/smoke evidence recorded below |
-| 02 — Unified Providers and Agent Reliability | Pending approval | Unified reliable provider and tool behavior | No implementation started |
-| 03 — Security and Real Capability Completion | Pending | Safe policy/privacy/secrets and truthful features | No completion record; implementation not started |
+| 02 — Unified Providers and Agent Reliability | Completed | Unified reliable provider and tool behavior | 44/44 cumulative tests, lint/build/audit/smoke evidence recorded below |
+| 03 — Security and Real Capability Completion | Pending approval | Safe policy/privacy/secrets and truthful features | No completion record; implementation not started |
 | 04 — Performance, Full QA, and Release | Pending | Optimized verified package and final release | No completion record; implementation not started |
 
 ## Mandatory completion record
@@ -71,11 +71,54 @@ Rollback reference: `2e384bedf991c011e03537dc6ec868fb6ebea92e`.
 
 ## Phase 02 record
 
-**Pending approval.** Exact Phase 02 scope must be planned from this completion state and separately approved.
+| Field | Record |
+| --- | --- |
+| Approval | `APPROVE NAVIX-AI PHASE-02 IMPLEMENTATION — SCOPE LOCKED` |
+| Status | Completed — 2026-09-04 UTC |
+| Start SHA | `a615d16b5fbe56ef3f1a3db800e6165b9ddfa398` |
+| Completion SHA | Git commit containing this record; authoritative SHA is GitHub `main` after atomic push |
+| Findings closed | F-008, F-009, F-010, F-011, F-012, Phase 02 request-wiring portion of F-013 |
+| Ongoing | F-007 full live-provider/Chrome E2E; F-013 trusted-content policy; F-021 each-phase synchronization |
+| Compatibility | Version, manifest identity/permissions, storage database/prefix and records, UI markup/styles/controls, sessions/history, files/PDF/OCR/copy behavior, and provider selection preserved |
+| Release policy | Build/ZIP workflow remains manually disabled; no tag, release, artifact, dependency change, or version bump |
+
+Implemented behavior:
+
+- Added shared provider contracts, registry, runner, prompt construction, buffered SSE parsing, and stable provider error taxonomy.
+- Moved Gemini, OpenAI, Hugging Face, and Ollama extension/server behavior behind provider adapters while keeping the existing web service facade.
+- Updated Hugging Face chat to the current Inference Providers router; added streamed OpenAI-compatible tool-call assembly.
+- Added Ollama OpenAI-compatible chat with deterministic native `/api/chat` fallback and installed-model diagnostics.
+- Added one tool contract for tool-capable providers, strict tool name/argument validation, false-success prevention, and one bounded stale-context refresh per request.
+- Applied saved system prompt, enabled custom instructions, response language, page context, attachments, screenshots, and request-local history exactly once through structured fields.
+- Made `activeConfigs` the selected runtime source while preserving/mirroring legacy provider keys; each attempt now contains only its own credential/configuration.
+- Limited same-provider retries and cross-provider fallback to bounded retryable zero-output pre-action failures; auth/model/cancellation/partial-output/action states cannot switch providers.
+- Unified extension and web-preview provider/model diagnostics without changing Settings layout.
+
+Verification evidence:
+
+| Gate | Result |
+| --- | --- |
+| `npm ci --ignore-scripts --no-audit --no-fund` | Pass |
+| `npm run lint` | Pass — 0 errors |
+| `npm test` | Pass — 44/44 cumulative |
+| `npm run build` | Pass |
+| Build structure | Pass — required files/manifest references present; content script self-contained |
+| `npm audit --offline --audit-level=high` | Pass — 0 known vulnerabilities in installed lockfile resolution |
+| Dependency tree | Pass — exact direct versions; no missing/extraneous package |
+| Production server smoke | Pass — UI HTTP 200; missing provider credentials return safe structured failure |
+| Provider contract tests | Pass — fragmented streams/tools, HF router, Ollama fallback, Gemini tools, errors/timeouts/diagnostics/context/fallback |
+| Compatibility/security scan | Pass — no manifest/version/permission/storage/workflow/dependency change; no committed key pattern or credential logging found |
+| Rendered Chrome/live-provider E2E | Not executed — no user credentials/browser runtime in audit; retained as Phase 04 gate |
+
+Changed areas: provider/core contracts, provider adapters, background orchestration/tool outcomes, server facade/diagnostic route, Sidebar request/diagnostic/fallback plumbing, focused tests, and synchronized documentation. Existing rendered UI markup/styles and visible feature set were not redesigned.
+
+Limitations carried forward: risky-action confirmation, enforceable prompt-injection boundary, stored-secret lifecycle/redaction, least-privilege/consent controls, prompt-only feature completion, large side-panel bundle, full credentialed provider/Chrome E2E, packaging, tag, and release.
+
+Rollback reference: `a615d16b5fbe56ef3f1a3db800e6165b9ddfa398`.
 
 ## Phase 03 record
 
-**Pending.** It cannot begin before Phase 02 acceptance.
+**Pending approval.** Exact Phase 03 scope must be planned from this completion state and separately approved.
 
 ## Phase 04 record
 

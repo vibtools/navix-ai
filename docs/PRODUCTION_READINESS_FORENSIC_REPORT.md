@@ -2,7 +2,7 @@
 
 ## Executive verdict
 
-Navix AI is a buildable Manifest V3 prototype with a substantial side-panel UI, Gemini-centered browser-agent behavior, multiple provider connectors, local persistence, and document/image context features. Phase 01 closed the verified core state, deterministic dependency, storage, cancellation, DOM identity, and minimum quality-gate root causes. It is not production-ready because provider parity, browser-action safety, capability truth, full E2E/performance evidence, and release controls remain incomplete.
+Navix AI is a buildable Manifest V3 prototype with a substantial side-panel UI, shared Gemini/OpenAI/Hugging Face/Ollama provider execution, local persistence, browser tools, and document/image context features. Phases 01 and 02 closed the verified core-state, deterministic-build, provider-duplication, streaming, capability-aware tool, provider-normalization, input-wiring, storage, cancellation, and DOM-identity root causes. It is not production-ready because browser-action safety, trusted-content/secret/permission controls, capability truth, full E2E/performance evidence, and release controls remain incomplete.
 
 This report uses the official frozen baseline. Findings do not authorize implementation outside an approved phase.
 
@@ -23,6 +23,7 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 - Gemini streaming and a bounded browser-action loop are implemented.
 - Page context, navigation/search, click/type/Enter, screenshots, attachments, PDF extraction, OCR, and copy/history controls have implementation code.
 - Phase 01 now has exact dependency pins/lockfile, ESLint, 19 focused tests, self-contained content-script validation, and request-local session state.
+- Phase 02 provides one extension/server provider runner, buffered SSE, normalized provider errors/diagnostics, isolated fallback attempts, structured prompt/context inputs, and shared capability-aware browser tools; the cumulative suite now contains 44 focused tests.
 
 ## Findings register
 
@@ -35,12 +36,12 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 | F-005 | Medium | Storage completion is ambiguous | Closed in Phase 01: serialized awaited writes and stable failures with legacy compatibility | 01 |
 | F-006 | High | Build is non-deterministic | Closed in Phase 01: exact direct pins, lockfile, and future workflow `npm ci` | 01 |
 | F-007 | High | Quality gates are absent | Phase 01 gate closed: lint, 19 tests, build-structure validation; full provider/Chrome E2E remains Phase 04 | 01/04 |
-| F-008 | High | Provider logic is duplicated | Background/server implementations diverge | 02 |
-| F-009 | High | OpenAI SSE parser is fragile | Per-chunk parsing can drop fragmented events silently | 02 |
-| F-010 | High | Browser tools are Gemini-only | Other providers have no normalized tool loop | 02 |
-| F-011 | Medium | Hugging Face contract is narrow | One endpoint/response shape is assumed | 02 |
-| F-012 | Medium | Ollama diagnostics are incomplete | CORS/private-network/model failures are not normalized | 02 |
-| F-013 | Medium | Settings are not fully wired | Saved system prompt and some controls do not affect the effective path | 02/03 |
+| F-008 | High | Provider logic is duplicated | Closed in Phase 02: extension/server use one registry, runner, adapters, prompt, error, retry, and fallback contract | 02 |
+| F-009 | High | OpenAI SSE parser is fragile | Closed in Phase 02: stateful every-boundary buffering; malformed events fail explicitly | 02 |
+| F-010 | High | Browser tools are Gemini-only | Closed in Phase 02: Gemini/OpenAI-compatible/Ollama tool calls share validation/execution; model limitations are explicit | 02 |
+| F-011 | Medium | Hugging Face contract is narrow | Closed in Phase 02: current router, streaming/OpenAI-compatible shapes, tools, diagnostics, and safe errors | 02 |
+| F-012 | Medium | Ollama diagnostics are incomplete | Closed in Phase 02: installed-model probe, OpenAI-compatible/native paths, HTTP-aware fallback, and normalized failures | 02 |
+| F-013 | Medium | Settings are not fully wired | Phase 02 wiring closed: system/custom/language/page/file/screenshot inputs applied once; trusted-content policy remains Phase 03 | 02/03 |
 | F-014 | Critical | No risky-action confirmation | Model click/type/Enter/navigation can execute immediately | 03 |
 | F-015 | Critical | Weak prompt-injection boundary | Untrusted page/file text is mixed into model context | 03 |
 | F-016 | High | Secrets stored as plaintext values | Keys are duplicated without lifecycle/redaction controls | 03 |

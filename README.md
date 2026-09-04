@@ -8,7 +8,7 @@
 
 ## Production Hardening Status
 
-The verified `v1.0.0.1.2` baseline is in an approval-gated, four-phase production-hardening program. Phase 01 is complete with deterministic dependencies, request-local session history, reliable cancellation, durable storage handling, stable DOM identities, and automated quality gates. Production readiness has not yet been declared. Extension build/ZIP artifact generation remains paused until the Phase 04 release gate.
+The verified `v1.0.0.1.2` baseline is in an approval-gated, four-phase production-hardening program. Phases 01 and 02 are complete. Core state/build integrity and one shared provider execution contract now cover Gemini, OpenAI, Hugging Face, and Ollama with buffered streaming, normalized errors, capability-aware tools, structured context, diagnostics, and isolated fallback. Production readiness has not yet been declared because Phase 03 security/capability work and Phase 04 full E2E/release gates remain. Extension build/ZIP artifact generation remains paused until the Phase 04 release gate.
 
 Current feature truth, open findings, phase progress, and approval rules are maintained in the [documentation index](docs/DOCUMENTATION_INDEX.md).
 
@@ -61,7 +61,7 @@ Browser Extension (UI & Sidebar)
 ```
 
 ## 🛠️ Development Phase
-Currently in active development: Integrating context-aware chat, local storage persistence, and core LLM prompt chaining for autonomous browsing.
+Phase 02 is complete. The next approval-gated continuation point is Phase 03 — security and real capability completion.
 
 ## 📚 Production Documentation
 

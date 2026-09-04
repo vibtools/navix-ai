@@ -7,12 +7,12 @@
 | F-004 | Provider-aware cancellation/port lifecycle | 01 | Lifecycle/delay tests plus signal wiring; live E2E retained in F-007 | Closed — Phase 01 root cause |
 | F-005 | Awaited validated storage contract | 01 | Chrome success/failure, corrupt fallback, legacy prefix, listener tests | Closed — Phase 01 |
 | F-006 | Lockfile/deterministic install | 01 | Exact pins, lockfile, `npm ci`, clean build | Closed — Phase 01 |
-| F-007 | Real quality gates | 01/04 | ESLint + 19 tests + build verification pass; full Chrome/provider E2E pending | Phase 01 gate closed; Phase 04 open |
-| F-008 | Shared provider adapters | 02 | Extension/server contract tests | Open |
-| F-009 | Buffered streaming | 02 | Fragmented/malformed SSE tests | Open |
-| F-010 | Capability-aware tool execution | 02 | Per-provider capability/tool tests | Open |
-| F-011/F-012 | HF/Ollama normalization | 02 | Auth/model/network/CORS tests | Open |
-| F-013 | Effective setting wiring | 02/03 | Request snapshot/policy tests | Open |
+| F-007 | Real quality gates | 01/04 | ESLint + 44 tests + build verification pass; full Chrome/provider E2E pending | Phase 01-02 gates closed; Phase 04 open |
+| F-008 | Shared provider adapters | 02 | Shared extension/server registry and runner contract tests | Closed — Phase 02 |
+| F-009 | Buffered streaming | 02 | Every-boundary fragmented, CRLF, done, and malformed SSE tests | Closed — Phase 02 |
+| F-010 | Capability-aware tool execution | 02 | Gemini/OpenAI-compatible/Ollama tool normalization and validation tests | Closed — Phase 02 |
+| F-011/F-012 | HF/Ollama normalization | 02 | Router/native endpoint, model, response, fallback, and failure tests | Closed — Phase 02 |
+| F-013 | Effective setting wiring | 02/03 | System/custom/language/page/file/screenshot request tests; trust policy pending | Phase 02 wiring closed; Phase 03 policy open |
 | F-014 | Exact-action confirmation | 03 | Denial/approval/expiry tests | Open |
 | F-015 | Trusted-content boundary | 03 | Adversarial injection suite | Open |
 | F-016 | Secret lifecycle/redaction | 03 | Storage/log/error/export tests | Open |
@@ -20,7 +20,7 @@
 | F-018 | Real or truthfully disabled capabilities | 03 | Capability functional/failure tests | Open |
 | F-019 | Optimized artifact | 04 | Bundle/memory/startup/package budgets | Open |
 | F-020 | Versioned release | 04 | Checklist/digest/tag/release evidence | Open |
-| F-021 | Accurate documentation | 01-04 | Documentation review each phase | Phase 01 synchronized; ongoing |
+| F-021 | Accurate documentation | 01-04 | Documentation review each phase | Phase 01-02 synchronized; ongoing |
 | F-022 | Repository hygiene | 04 | Tracked-file/license/dead-code audit | Open |
 
 ## Required synchronization

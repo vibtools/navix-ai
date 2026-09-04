@@ -2,6 +2,7 @@ import { AppError, ErrorCode } from './errorContract.js';
 
 export const CHAT_REQUEST = 'AI_CHAT_REQUEST';
 export const CLEAR_HISTORY = 'CLEAR_HISTORY';
+export const PROVIDER_PROBE = 'PROVIDER_PROBE';
 
 function createId(prefix, cryptoObject = globalThis.crypto, now = Date.now) {
   if (typeof cryptoObject?.randomUUID === 'function') {
@@ -58,4 +59,3 @@ export function validateChatRequest(request) {
     chatHistory: normalizeUiHistory(request.chatHistory)
   };
 }
-

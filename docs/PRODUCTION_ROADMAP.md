@@ -7,8 +7,8 @@ Move the frozen Navix AI baseline to production readiness in exactly four contro
 | Phase | Name | Outcome | Status |
 | --- | --- | --- | --- |
 | 01 | Deterministic Core and State Integrity | Stable build, sessions, storage, cancellation, selectors, and minimum quality gates | Completed — 2026-09-04 UTC |
-| 02 | Unified Providers and Agent Reliability | One provider contract, reliable streaming/errors, and capability-correct agent execution | Pending approval |
-| 03 | Security and Real Capability Completion | Safe actions, privacy/secret controls, prompt-injection defenses, and truthful features | Pending |
+| 02 | Unified Providers and Agent Reliability | One provider contract, reliable streaming/errors, and capability-correct agent execution | Completed — 2026-09-04 UTC |
+| 03 | Security and Real Capability Completion | Safe actions, privacy/secret controls, prompt-injection defenses, and truthful features | Pending approval |
 | 04 | Performance, Full QA, and Release | Optimized package, full regression evidence, restored build workflow, versioned release | Pending |
 
 ## Phase 01 — Deterministic Core and State Integrity
@@ -56,6 +56,10 @@ Preserve provider UI and stored records. Do not expand automatic sensitive actio
 ### Exit criteria
 
 All providers pass supported response/error tests; tool-capable providers pass controlled action tests; split SSE records are preserved; fallback cannot mix credentials/history; extension/server behavior shares verified contracts.
+
+### Completion evidence
+
+Phase 02 closed F-008 through F-012 and the Phase 02 request-wiring portion of F-013. Gemini, OpenAI, Hugging Face, and Ollama now use shared provider execution, prompt, error, diagnostic, fallback, and browser-tool contracts. Buffered SSE and fragmented tool calls, isolated credential attempts, zero-output-only fallback, model diagnostics, timeouts, invalid/empty responses, tool schema validation, and bounded stale-context recovery are covered by the 44-test suite. Lint, deterministic build, offline dependency audit, production-server smoke, manifest/version/permission/storage compatibility, and the paused artifact workflow pass. Credentialed live-provider and Chrome E2E remain Phase 04 gates; Phase 03 security boundaries remain open.
 
 ## Phase 03 — Security and Real Capability Completion
 

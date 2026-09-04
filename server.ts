@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { generateChatResponse } from './src/services/geminiService.js';
+import { generateChatResponse, testProviderConnection } from './src/services/geminiService.js';
 import { isAbortError, toErrorPayload } from './src/core/errorContract.js';
 
 async function startServer() {
@@ -19,25 +19,47 @@ async function startServer() {
     });
 
     try {
-      res.setHeader('Content-Type', 'text/plain');
-      res.setHeader('Transfer-Encoding', 'chunked');
-      
       await generateChatResponse(req.body, (chunk) => {
-        if (!controller.signal.aborted) res.write(chunk);
+        if (!controller.signal.aborted) {
+          if (!res.headersSent) res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.write(chunk);
+        }
       }, controller.signal);
-      
+
+      if (!res.headersSent) res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.end();
     } catch (error) {
       if (isAbortError(error) || controller.signal.aborted) {
         if (!res.writableEnded) res.end();
         return;
       }
-      console.error("Gemini API Error:", error);
+      console.error("Provider API Error:", toErrorPayload(error));
       if (!res.headersSent) {
         res.status(500).json({ error: toErrorPayload(error) });
       } else {
+        const payload = toErrorPayload(error);
+        res.write(`\n\n**⚠️ Error (${payload.code}):** ${payload.message}`);
         res.end();
       }
+    }
+  });
+
+  app.post('/api/provider/test', async (req, res) => {
+    const controller = new AbortController();
+    req.on('aborted', () => controller.abort());
+    res.on('close', () => {
+      if (!res.writableEnded) controller.abort();
+    });
+
+    try {
+      const result = await testProviderConnection(req.body?.attempt, controller.signal);
+      res.json({ success: true, result });
+    } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) {
+        if (!res.writableEnded) res.end();
+        return;
+      }
+      res.status(400).json({ error: toErrorPayload(error) });
     }
   });
 

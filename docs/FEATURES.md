@@ -2,7 +2,7 @@
 
 > This file states product goals, not completion evidence. Use [Actual Implementation Status](ACTUAL_IMPLEMENTATION_STATUS.md) for verified working, partial, prompt-only/demo, and missing capabilities. Production work is controlled by the [four-phase roadmap](PRODUCTION_ROADMAP.md).
 
-Phase 01 changed internal reliability only: existing UI/UX and visible feature scope remain unchanged. Session isolation, storage durability, cancellation, DOM identity, and deterministic quality gates are now implemented; provider parity and security controls remain in later phases.
+Phases 01 and 02 changed internal reliability without redesigning the existing UI/UX. Session/storage/cancellation integrity and deterministic gates are implemented. Gemini, OpenAI, Hugging Face, and Ollama now share provider, streaming, error, context, diagnostics, fallback, and capability-aware tool contracts. Sensitive-action confirmation, trust boundaries, secret lifecycle, permission hardening, and prompt-only capability completion remain Phase 03 work.
 
 ## Version 1 Goals
 
@@ -48,8 +48,9 @@ Capabilities:
 ### AI Providers
 
 - Gemini
-- GPT
-- Custom API
+- OpenAI
+- Hugging Face Inference Providers
+- Ollama (OpenAI-compatible with native API fallback)
 
 ## Future Features
 

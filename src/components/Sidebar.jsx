@@ -6,6 +6,36 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { AppStorage } from '../core/appStorage.js';
 import { createRequestId, createSessionId } from '../core/sessionProtocol.js';
 
+function toProviderAttempt(config) {
+  const provider = config?.provider;
+  if (provider === 'gemini' || provider === 'openai' || provider === 'huggingface') {
+    return { provider, modelId: config.model, apiKey: config.apiKey };
+  }
+  if (provider === 'ollama') {
+    return { provider, modelId: config.model, baseUrl: config.url };
+  }
+  return null;
+}
+
+function providerAttemptFromSettings(settings, provider = settings.selectedModel) {
+  if (provider === 'gemini') return { provider, modelId: settings.geminiModel, apiKey: settings.geminiApiKey };
+  if (provider === 'openai') return { provider, modelId: settings.openAiModel, apiKey: settings.openAiApiKey };
+  if (provider === 'huggingface') return { provider, modelId: settings.hfModel, apiKey: settings.hfApiKey };
+  if (provider === 'ollama') return { provider, modelId: settings.ollamaModel, baseUrl: settings.ollamaUrl };
+  return null;
+}
+
+function resolvePrimaryProviderAttempt(settings, configs = []) {
+  const provider = settings.selectedModel;
+  const selectedModel = provider === 'gemini' ? settings.geminiModel
+    : provider === 'openai' ? settings.openAiModel
+      : provider === 'huggingface' ? settings.hfModel
+        : settings.ollamaModel;
+  const activeConfig = configs.find((config) => config.isActive && config.provider === provider)
+    || configs.find((config) => config.provider === provider && config.model === selectedModel);
+  return toProviderAttempt(activeConfig) || providerAttemptFromSettings(settings, provider);
+}
+
 const CopyButton = ({ text }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
@@ -217,6 +247,22 @@ export default function Sidebar() {
     } finally {
       setActionLoading({ provider: null, action: null });
     }
+  };
+
+  const requestProviderProbe = async (attempt) => {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
+      const response = await chrome.runtime.sendMessage({ type: 'PROVIDER_PROBE', attempt });
+      if (!response?.success) throw new Error(response?.error?.message || 'Connection test failed');
+      return response.result;
+    }
+    const response = await fetch('/api/provider/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attempt })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.success) throw new Error(data?.error?.message || 'Connection test failed');
+    return data.result;
   };
   
   const [geminiModelList, setGeminiModelList] = useState([
@@ -688,30 +734,9 @@ export default function Sidebar() {
     setTestStatus('loading');
     setTestMessage(`Testing ${config.provider} (${config.model})...`);
     try {
-      if (config.provider === 'gemini') {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: "Hello" }] }] })
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error?.message || "Invalid API Key or Model");
-        }
-      } else if (config.provider === 'openai') {
-        const res = await fetch('https://api.openai.com/v1/models', {
-          headers: { 'Authorization': `Bearer ${config.apiKey}` }
-        });
-        if (!res.ok) throw new Error("Invalid API Key");
-      } else if (config.provider === 'huggingface') {
-        const res = await fetch('https://huggingface.co/api/whoami-v2', {
-          headers: { 'Authorization': `Bearer ${config.apiKey}` }
-        });
-        if (!res.ok) throw new Error("Invalid Token");
-      } else if (config.provider === 'ollama') {
-        const res = await fetch(`${(config.url || 'http://localhost:11434').replace(/\/$/, '')}/api/version`);
-        if (!res.ok) throw new Error("Could not connect to Ollama");
-      }
+      const attempt = toProviderAttempt(config);
+      if (!attempt) throw new Error('Unsupported provider configuration');
+      await requestProviderProbe(attempt);
       setTestStatus('success');
       setTestMessage(`${config.provider.toUpperCase()} (${config.model}) connected successfully!`);
     } catch (err) {
@@ -864,39 +889,20 @@ export default function Sidebar() {
     setTestStatus('loading');
     setTestMessage('Testing connection...');
     try {
-      if (provider === 'gemini') {
-        const key = geminiApiKey || savedSettings.geminiApiKey;
-        const modelToTest = geminiModel || savedSettings.geminiModel || 'gemini-2.5-flash';
-        if (!key) throw new Error("API Key required");
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToTest}:generateContent?key=${key}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: "Hello" }] }] })
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error?.message || "Invalid API Key or Model");
-        }
-      } else if (provider === 'openai') {
-        const key = openAiApiKey || savedSettings.openAiApiKey;
-        if (!key) throw new Error("API Key required");
-        const res = await fetch('https://api.openai.com/v1/models', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        });
-        if (!res.ok) throw new Error("Invalid API Key");
-      } else if (provider === 'huggingface') {
-        const key = hfApiKey || savedSettings.hfApiKey;
-        if (!key) throw new Error("Token required");
-        const res = await fetch('https://huggingface.co/api/whoami-v2', {
-          headers: { 'Authorization': `Bearer ${key}` }
-        });
-        if (!res.ok) throw new Error("Invalid Token");
-      } else if (provider === 'ollama') {
-        const url = ollamaUrl || savedSettings.ollamaUrl;
-        if (!url) throw new Error("URL required");
-        const res = await fetch(`${url.replace(/\/$/, '')}/api/version`);
-        if (!res.ok) throw new Error("Could not connect to Ollama");
-      }
+      const draftSettings = {
+        ...savedSettings,
+        geminiApiKey: geminiApiKey || savedSettings.geminiApiKey,
+        geminiModel: geminiModel || savedSettings.geminiModel,
+        openAiApiKey: openAiApiKey || savedSettings.openAiApiKey,
+        openAiModel: openAiModel || savedSettings.openAiModel,
+        hfApiKey: hfApiKey || savedSettings.hfApiKey,
+        hfModel: hfModel || savedSettings.hfModel,
+        ollamaUrl: ollamaUrl || savedSettings.ollamaUrl,
+        ollamaModel: ollamaModel || savedSettings.ollamaModel
+      };
+      const attempt = providerAttemptFromSettings(draftSettings, provider);
+      if (!attempt) throw new Error('Unsupported provider configuration');
+      await requestProviderProbe(attempt);
       setTestStatus('success');
       setTestMessage('Connection successful!');
     } catch (err) {
@@ -1094,12 +1100,8 @@ export default function Sidebar() {
 
     // Validation based on selected model (using truth settings)
     const isConfigured = () => {
-      if (!savedSettings.selectedModel) return false;
-      if (savedSettings.selectedModel === 'gemini') return !!savedSettings.geminiApiKey;
-      if (savedSettings.selectedModel === 'openai') return !!savedSettings.openAiApiKey;
-      if (savedSettings.selectedModel === 'huggingface') return !!savedSettings.hfApiKey;
-      if (savedSettings.selectedModel === 'ollama') return !!savedSettings.ollamaUrl;
-      return false;
+      const attempt = resolvePrimaryProviderAttempt(savedSettings, activeConfigs);
+      return Boolean(attempt && (attempt.apiKey || attempt.baseUrl));
     };
 
     if (!isConfigured()) {
@@ -1180,95 +1182,68 @@ export default function Sidebar() {
     if (dataAnalysis) {
       pluginContext += "\n[CAPABILITY: Data Analysis Active] Analytical, computational, and structured dataset queries are prioritized.";
     }
-    if (customInstructionsEnabled && customInstruction) {
-      pluginContext += `\n[CUSTOM INSTRUCTIONS]\n${customInstruction}`;
-    }
-    if (responseLanguage && responseLanguage !== 'Auto') {
-      pluginContext += `\n[RESPONSE LANGUAGE: Please respond in ${responseLanguage}]`;
-    }
-    
     if (pluginContext) {
       domContext += (domContext ? "\n\n" : "") + "--- ACTIVE SYSTEM PLUGINS ---\n" + pluginContext.trim();
     }
 
-    if (uploadedFiles.length > 0) {
-      const filesContext = uploadedFiles.map(f => {
+    const requestAttachments = uploadedFiles.map(f => {
         let contentToInject = f.content;
         if (f.isImage && f.extractedText) {
           contentToInject = `[Image OCR Extracted Text]:\n${f.extractedText}`;
         }
-        return `--- FILE: ${f.name} ---\n${contentToInject}\n--- END OF FILE ---`;
-      }).join('\n\n');
-      domContext += (domContext ? "\n\n" : "") + "--- ATTACHED FILES ---\n" + filesContext;
+        return { name: f.name, content: contentToInject };
+      }).filter(file => typeof file.content === 'string' && file.content.trim());
+    if (requestAttachments.length > 0) {
       // Clear files after attaching them
       setUploadedFiles([]);
     }
 
-    const attemptList = [];
-    attemptList.push({
-      model: savedSettings.selectedModel,
-      geminiApiKey: savedSettings.geminiApiKey,
-      geminiModel: savedSettings.geminiModel,
-      openAiApiKey: savedSettings.openAiApiKey,
-      openAiModel: savedSettings.openAiModel,
-      hfApiKey: savedSettings.hfApiKey,
-      hfModel: savedSettings.hfModel,
-      ollamaUrl: savedSettings.ollamaUrl,
-      ollamaModel: savedSettings.ollamaModel
-    });
+    const primaryAttempt = resolvePrimaryProviderAttempt(savedSettings, activeConfigs);
+    const attemptList = primaryAttempt ? [primaryAttempt] : [];
 
     if (autoModelSwitch && activeConfigs && activeConfigs.length > 0) {
-      const mainModelId = attemptList[0][savedSettings.selectedModel === 'gemini' ? 'geminiModel' : savedSettings.selectedModel === 'openai' ? 'openAiModel' : savedSettings.selectedModel === 'huggingface' ? 'hfModel' : 'ollamaModel'];
-      activeConfigs.filter(c => c.provider !== savedSettings.selectedModel || c.model !== mainModelId).forEach(c => {
-         let fallback = { ...attemptList[0], model: c.provider };
-         if (c.provider === 'gemini') { fallback.geminiApiKey = c.apiKey; fallback.geminiModel = c.model; }
-         else if (c.provider === 'openai') { fallback.openAiApiKey = c.apiKey; fallback.openAiModel = c.model; }
-         else if (c.provider === 'huggingface') { fallback.hfApiKey = c.apiKey; fallback.hfModel = c.model; }
-         else if (c.provider === 'ollama') { fallback.ollamaUrl = c.url; fallback.ollamaModel = c.model; }
-         attemptList.push(fallback);
+      const primaryIdentity = `${primaryAttempt?.provider || ''}\u0000${primaryAttempt?.modelId || ''}`;
+      activeConfigs.forEach((config) => {
+        const fallback = toProviderAttempt(config);
+        if (!fallback) return;
+        const identity = `${fallback.provider}\u0000${fallback.modelId}`;
+        if (identity !== primaryIdentity) attemptList.push(fallback);
       });
     }
 
     setChat((items) => [...items, { role: 'assistant', text: '', status: '' }]);
 
-    const executeRequest = (attemptIndex) => {
-      const currentConfig = attemptList[attemptIndex];
+    const executeRequest = () => {
       const requestId = createRequestId();
       const payloadObj = {
         message: userMessage,
         chatHistory: chat,
         sessionId: requestSessionId,
         requestId,
-        domContext,
+        model: primaryAttempt?.provider,
+        providerAttempts: attemptList,
+        pageContext: domContext,
+        attachments: requestAttachments,
         includeScreenshot,
         thinkMode,
-        ...currentConfig
+        systemPrompt,
+        customInstruction,
+        customInstructionsEnabled,
+        responseLanguage
       };
 
-      if (attemptIndex > 0) {
+      const handleError = (errorMsg) => {
         setChat(prev => {
           const next = [...prev];
-          next[next.length - 1].status = `Switched to fallback model (${currentConfig.model})...`;
+          if (next[next.length - 1].text) {
+            next[next.length - 1].text += `\n\n**⚠️ Error:** ${errorMsg}`;
+          } else {
+            next[next.length - 1].text = `**⚠️ Error:** ${errorMsg}`;
+          }
+          next[next.length - 1].status = '';
           return next;
         });
-      }
-
-      const handleError = (errorMsg) => {
-         if (autoModelSwitch && attemptIndex < attemptList.length - 1) {
-            executeRequest(attemptIndex + 1);
-         } else {
-            setChat(prev => {
-              const next = [...prev];
-              if (next[next.length - 1].text) {
-                next[next.length - 1].text += `\n\n**⚠️ Error:** ${errorMsg}`;
-              } else {
-                next[next.length - 1].text = `**⚠️ Error:** ${errorMsg}`;
-              }
-              next[next.length - 1].status = '';
-              return next;
-            });
-            setLoading(false);
-         }
+        setLoading(false);
       };
 
       if (typeof chrome !== 'undefined' && chrome.runtime?.id && chrome.runtime.connect) {
@@ -1387,7 +1362,7 @@ export default function Sidebar() {
       }
     };
 
-    executeRequest(0);
+    executeRequest();
   }
 
   if (showSettings) {
