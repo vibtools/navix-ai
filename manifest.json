@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "AI Browser Copilot",
+  "version": "0.1.0",
+  "description": "AI powered browser assistant with sidebar chat and browser interaction.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background/serviceWorker.js"
+  },
+  "action": {
+    "default_title": "AI Browser Copilot"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/contentScript.js"]
+    }
+  ]
+}
