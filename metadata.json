@@ -1,5 +1,5 @@
 {
-  "name": "AI Browser Copilot",
+  "name": "Navix AI",
   "description": "An AI browser copilot that helps summarize and understand web pages.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

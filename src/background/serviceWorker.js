@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('AI Browser Copilot installed (Manifest V3)');
+  console.log('Navix AI installed (Manifest V3)');
   // Enable side panel to open on extension icon click
   if (chrome.sidePanel) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
@@ -262,7 +262,7 @@ async function handleAIRequestStream(request, port) {
 
   if (model === 'gemini') {
     if (!geminiApiKey) throw new Error("Gemini API Key is missing. Please set it in settings.");
-    const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+    const ai = new GoogleGenAI({ apiKey: geminiApiKey.trim() });
     
     const userParts = [{ text: userMessage }];
     if (screenshotDataUrl) {
@@ -389,7 +389,7 @@ async function handleAIRequestStream(request, port) {
 
     const res = await fetchWithRetry('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openAiApiKey}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openAiApiKey.trim()}` },
       body: JSON.stringify({ model: openAiModel || 'gpt-4o', messages, stream: true })
     }, port, 4);
     
@@ -449,7 +449,7 @@ async function handleAIRequestStream(request, port) {
     const activeHfModel = hfModel || 'mistralai/Mistral-Nemo-Instruct-2407';
     const res = await fetchWithRetry(`https://api-inference.huggingface.co/models/${activeHfModel}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hfApiKey}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hfApiKey.trim()}` },
       body: JSON.stringify({ model: activeHfModel, messages, max_tokens: 500 })
     }, port, 4);
     

@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "AI Browser Copilot",
-  "version": "1.0.0",
-  "description": "Autonomous AI agent that can browse, audit, and interact with websites.",
+  "name": "Navix AI",
+  "version": "1.0.0.1",
+  "version_name": "v1.0.0.1.2",
+  "description": "Your AI Browser Copilot for intelligent browsing, research and automation.",
   "permissions": [
     "sidePanel",
     "tabs",
@@ -21,11 +22,11 @@
     "default_path": "index.html"
   },
   "action": {
-    "default_title": "Open AI Copilot",
+    "default_title": "Open Navix AI",
     "default_icon": {
-      "16": "logo/branding/AI-Browser-Copilot-light-icon.png",
-      "48": "logo/branding/AI-Browser-Copilot-light-icon.png",
-      "128": "logo/branding/AI-Browser-Copilot-light-icon.png"
+      "16": "logo/branding/navix-ai-light-icon.png",
+      "48": "logo/branding/navix-ai-light-icon.png",
+      "128": "logo/branding/navix-ai-light-icon.png"
     }
   },
   "content_scripts": [
@@ -35,8 +36,8 @@
     }
   ],
   "icons": {
-    "16": "logo/branding/AI-Browser-Copilot-light-icon.png",
-    "48": "logo/branding/AI-Browser-Copilot-light-icon.png",
-    "128": "logo/branding/AI-Browser-Copilot-light-icon.png"
+    "16": "logo/branding/navix-ai-light-icon.png",
+    "48": "logo/branding/navix-ai-light-icon.png",
+    "128": "logo/branding/navix-ai-light-icon.png"
   }
 }

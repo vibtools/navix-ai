@@ -2,7 +2,7 @@
 
 ## Overview
 
-AI Browser Copilot is designed as a Chrome Extension based AI browser assistant.
+Navix AI is designed as a Chrome Extension based AI browser assistant.
 
 ## High Level Structure
 

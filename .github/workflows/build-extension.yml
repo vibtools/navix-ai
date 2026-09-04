@@ -39,5 +39,5 @@ jobs:
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Browser-Copilot-Extension
+          name: navix-ai-extension
           path: dist/

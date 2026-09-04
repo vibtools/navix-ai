@@ -1,6 +1,6 @@
 {
-  "name": "ai-browser-copilot",
-  "version": "0.1.0",
+  "name": "navix-ai",
+  "version": "1.0.0.1.2",
   "private": true,
   "type": "module",
   "scripts": {

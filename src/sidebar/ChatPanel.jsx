@@ -2,7 +2,7 @@ export default function ChatPanel() {
   return (
     <div className="ai-chat-panel">
       <div className="ai-header">
-        <h3>AI Browser Copilot</h3>
+        <h3>Navix AI</h3>
         <button id="close-ai-sidebar">×</button>
       </div>
       <div id="ai-messages"></div>

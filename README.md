@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="public/logo/branding/AI-Browser-Copilot-light-icon.png" alt="AI Browser Copilot Logo" width="120" />
-  <h1>🌐 AI Browser Copilot</h1>
+  <img src="public/logo/branding/navix-ai-light-icon.png" alt="Navix AI Logo" width="120" />
+  <h1>🌐 Navix AI</h1>
   <p><em>Your fully autonomous AI web agent and ultimate browser assistant.</em></p>
 </div>
 
