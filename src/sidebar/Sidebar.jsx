@@ -3,16 +3,37 @@ import React, { useState } from 'react';
 export default function Sidebar() {
   const [message, setMessage] = useState('');
   const [chat, setChat] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   function sendMessage() {
-    if (!message.trim()) return;
+    if (!message.trim() || loading) return;
+
+    const userMessage = message.trim();
 
     setChat((items) => [
       ...items,
-      { role: 'user', text: message }
+      { role: 'user', text: userMessage }
     ]);
 
     setMessage('');
+    setLoading(true);
+
+    chrome.runtime.sendMessage(
+      {
+        type: 'AI_CHAT_REQUEST',
+        message: userMessage
+      },
+      (response) => {
+        setChat((items) => [
+          ...items,
+          {
+            role: 'assistant',
+            text: response?.message || 'No response received.'
+          }
+        ]);
+        setLoading(false);
+      }
+    );
   }
 
   return (
@@ -25,6 +46,7 @@ export default function Sidebar() {
             <strong>{item.role}:</strong> {item.text}
           </div>
         ))}
+        {loading && <div>AI is processing...</div>}
       </div>
 
       <input
