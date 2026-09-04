@@ -18,35 +18,43 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build web assets
+      - name: Build assets
         run: npm run build
 
-      - name: Create extension package
+      - name: Create clean Chrome extension package
         run: |
           rm -rf release
-          mkdir -p release
+          rm -f AI-Browser-Copilot-extension.zip
+
+          mkdir release
 
           cp manifest.json release/
           cp -r src release/
 
           if [ -d dist ]; then
-            cp -r dist/* release/ || true
+            cp -r dist release/dist
           fi
 
-          cd release
-          zip -r ../AI-Browser-Copilot-extension.zip .
-
-      - name: Verify manifest
-        run: |
           test -f release/manifest.json
-          echo "Manifest found"
+          test -f release/src/background/serviceWorker.js
+          test -f release/src/content/contentScript.js
+
+          cd release
+          zip -r ../AI-Browser-Copilot-extension.zip . -x '*.DS_Store'
+
+      - name: Verify package structure
+        run: |
+          unzip -l AI-Browser-Copilot-extension.zip
+          unzip -p AI-Browser-Copilot-extension.zip manifest.json > /tmp/manifest.json
+          test -s /tmp/manifest.json
 
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Browser-Copilot-extension
+          name: AI-Browser-Copilot-v0.1.0
           path: AI-Browser-Copilot-extension.zip
