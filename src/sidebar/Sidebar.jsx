@@ -21,14 +21,14 @@ export default function Sidebar() {
     chrome.runtime.sendMessage(
       {
         type: 'AI_CHAT_REQUEST',
-        message: userMessage
+        payload: userMessage
       },
       (response) => {
         setChat((items) => [
           ...items,
           {
             role: 'assistant',
-            text: response?.message || 'No response received.'
+            text: response?.response || response?.error || 'No response received.'
           }
         ]);
         setLoading(false);
