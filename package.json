@@ -4,15 +4,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build"
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "node dist/server.cjs"
   },
   "dependencies": {
+    "@google/genai": "^2.21.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.40.0",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "react-markdown": "^10.1.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@vitejs/plugin-react": "latest",
+    "esbuild": "^0.28.2",
+    "express": "^5.2.1",
+    "tsx": "^4.23.13",
     "vite": "latest"
   }
 }

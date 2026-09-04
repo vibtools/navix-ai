@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "AI Browser Copilot",
+  "version": "1.0.0",
+  "description": "Autonomous AI agent that can browse, audit, and interact with websites.",
+  "permissions": [
+    "sidePanel",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "index.html"
+  },
+  "action": {
+    "default_title": "Open AI Copilot",
+    "default_icon": {
+      "16": "logo/branding/AI-Browser-Copilot-light-icon.png",
+      "48": "logo/branding/AI-Browser-Copilot-light-icon.png",
+      "128": "logo/branding/AI-Browser-Copilot-light-icon.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content.js"]
+    }
+  ],
+  "icons": {
+    "16": "logo/branding/AI-Browser-Copilot-light-icon.png",
+    "48": "logo/branding/AI-Browser-Copilot-light-icon.png",
+    "128": "logo/branding/AI-Browser-Copilot-light-icon.png"
+  }
+}

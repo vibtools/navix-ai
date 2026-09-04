@@ -1,6 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import Sidebar from './sidebar/Sidebar.jsx';
+import Sidebar from './components/Sidebar.jsx';
+import './index.css';
 
 function App() {
   return <Sidebar />;

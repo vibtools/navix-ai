@@ -25,31 +25,19 @@ jobs:
       - name: Build assets
         run: npm run build
 
-      - name: Create clean Chrome extension package
-        run: |
-          rm -rf release
-          mkdir release
-
-          cp manifest.json release/
-          cp -r src release/
-
-          if [ -d dist ]; then
-            cp -r dist release/dist
-          fi
-
-          test -f release/manifest.json
-          test -f release/src/background/serviceWorker.js
-          test -f release/src/content/contentScript.js
-
       - name: Verify package structure
         run: |
-          test -f release/manifest.json
-          test -f release/src/background/serviceWorker.js
-          test -f release/src/content/contentScript.js
-          find release -maxdepth 2 -type f
+          echo "Listing dist/ directory:"
+          ls -la dist/
+          
+          echo "Listing dist/src/ directory:"
+          ls -la dist/src/ || true
+          
+          echo "Checking manifest.json:"
+          test -f dist/manifest.json
 
-      - name: Upload unpacked extension folder
+      - name: Upload extension artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AI-Browser-Copilot-v0.1.0-unpacked
-          path: release/
+          name: AI-Browser-Copilot-Extension
+          path: dist/
