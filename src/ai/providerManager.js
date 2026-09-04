@@ -1,9 +1,19 @@
 // Unified AI Provider Manager
 
 import { getAISettings } from '../settings/aiSettings.js';
+import { callGemini } from './providers/geminiProvider.js';
+import { callOpenAI } from './providers/openaiProvider.js';
 
 export async function sendAIRequest(prompt, context = '') {
   const settings = await getAISettings();
+
+  const finalPrompt = `
+Context:
+${context}
+
+User Request:
+${prompt}
+`;
 
   if (!settings.apiKey) {
     throw new Error('AI API key is not configured');
@@ -11,24 +21,12 @@ export async function sendAIRequest(prompt, context = '') {
 
   switch (settings.provider) {
     case 'gemini':
-      return sendGeminiRequest(prompt, context, settings);
+      return callGemini(finalPrompt, settings.apiKey, settings.model);
+
     case 'openai':
-      return sendOpenAIRequest(prompt, context, settings);
-    case 'custom':
-      return sendCustomRequest(prompt, context, settings);
+      return callOpenAI(finalPrompt, settings.apiKey, settings.model);
+
     default:
       throw new Error('Unsupported AI provider');
   }
-}
-
-async function sendGeminiRequest(prompt, context, settings) {
-  return `Gemini provider ready. Prompt: ${prompt}`;
-}
-
-async function sendOpenAIRequest(prompt, context, settings) {
-  return `OpenAI provider ready. Prompt: ${prompt}`;
-}
-
-async function sendCustomRequest(prompt, context, settings) {
-  return `Custom provider ready. Prompt: ${prompt}`;
 }
