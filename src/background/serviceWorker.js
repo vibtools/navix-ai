@@ -157,7 +157,7 @@ async function executeWithRetry(apiCall, port, maxRetries = 3) {
       return await apiCall();
     } catch (error) {
       const errorMsg = error.message || '';
-      const isRateLimit = error.status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota');
+      const isRateLimit = error.status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota') || error.status === 503 || errorMsg.includes('503') || error.status === 500 || errorMsg.includes('500') || errorMsg.includes('fetch');
       
       if (!isRateLimit || retries >= maxRetries - 1) {
         throw error;
@@ -184,31 +184,40 @@ async function executeWithRetry(apiCall, port, maxRetries = 3) {
 async function fetchWithRetry(url, options, port, maxRetries = 3) {
   let retries = 0;
   while (retries < maxRetries) {
-    const res = await fetch(url, options);
-    
-    if (res.status === 429) {
-      if (retries >= maxRetries - 1) {
-        return res; 
+    try {
+      const res = await fetch(url, options);
+      
+      if (res.status === 429 || res.status === 503 || res.status === 500) {
+        if (retries >= maxRetries - 1) {
+          return res; 
+        }
+        
+        let delay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
+        const retryAfter = res.headers.get('Retry-After');
+        if (retryAfter) {
+           const parsed = parseInt(retryAfter, 10);
+           if (!isNaN(parsed)) delay = parsed * 1000 + 500;
+        }
+        
+        if (port) {
+            port.postMessage({ status: `Server busy (HTTP ${res.status}). Retrying in ${Math.round(delay/1000)}s...` });
+        }
+        console.warn(`Fetch HTTP ${res.status}. Retrying in ${delay}ms...`);
+        
+        await new Promise(r => setTimeout(r, delay));
+        retries++;
+        continue;
       }
       
+      return res;
+    } catch (err) {
+      if (retries >= maxRetries - 1) throw err;
       let delay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
-      const retryAfter = res.headers.get('Retry-After');
-      if (retryAfter) {
-         const parsed = parseInt(retryAfter, 10);
-         if (!isNaN(parsed)) delay = parsed * 1000 + 500;
-      }
-      
-      if (port) {
-          port.postMessage({ status: `Rate limit hit. Retrying in ${Math.round(delay/1000)}s...` });
-      }
-      console.warn(`Fetch 429 Rate limit. Retrying in ${delay}ms...`);
-      
+      if (port) port.postMessage({ status: `Network error. Retrying in ${Math.round(delay/1000)}s...` });
+      console.warn(`Network error: ${err.message}. Retrying in ${delay}ms...`);
       await new Promise(r => setTimeout(r, delay));
       retries++;
-      continue;
     }
-    
-    return res;
   }
 }
 

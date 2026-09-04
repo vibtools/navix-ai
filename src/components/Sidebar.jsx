@@ -1,8 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, ChevronUp, Check, Zap, Server, Box, Loader2, Pencil, Save, Download, Puzzle, MessageSquare, Search, MoreVertical, FileText, Image as ImageIcon, SlidersHorizontal, Globe, Languages, SquarePen, LayoutGrid, Code2, Info } from 'lucide-react';
+import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, ChevronUp, Check, Zap, Server, Box, Loader2, Pencil, Save, Download, Puzzle, MessageSquare, Search, MoreVertical, FileText, Image as ImageIcon, SlidersHorizontal, Globe, Languages, SquarePen, LayoutGrid, Code2, Info, Copy } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+const CopyButton = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded transition-colors self-start"
+      title="Copy response"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+    </button>
+  );
+};
 
 function SearchableSelect({ value, onChange, options, placeholder }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -86,17 +104,21 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
 }
 
 // --- Storage Helper: Supports chrome.storage and IndexedDB fallback ---
-const dbPromise = new Promise((resolve, reject) => {
-  if (typeof indexedDB === 'undefined') {
+const dbPromise = new Promise((resolve) => {
+  if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
     resolve(null);
     return;
   }
-  const request = indexedDB.open('AICopilotDB', 1);
-  request.onupgradeneeded = (e) => {
-    e.target.result.createObjectStore('settings');
-  };
-  request.onsuccess = (e) => resolve(e.target.result);
-  request.onerror = (e) => reject(e.target.error);
+  try {
+    const request = indexedDB.open('AICopilotDB', 1);
+    request.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore('settings');
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => resolve(null);
+  } catch (err) {
+    resolve(null);
+  }
 });
 
 const AppStorage = {
@@ -212,6 +234,7 @@ export default function Sidebar() {
   // Additional General Config Drafts
   const [systemPrompt, setSystemPrompt] = useState('You are a helpful and intelligent AI assistant. Provide clear, accurate, and concise responses.');
   const [customInstruction, setCustomInstruction] = useState('Always format your responses using Markdown. Use code blocks for code snippets and lists for structured information.');
+  const [tabSummaryInstruction, setTabSummaryInstruction] = useState('Please provide a concise summary of the current page context.');
   const [defaultModel, setDefaultModel] = useState('gemini');
   const [autoModelSwitch, setAutoModelSwitch] = useState(false);
   const [dataAnalysis, setDataAnalysis] = useState(false);
@@ -292,7 +315,7 @@ export default function Sidebar() {
       'ollamaUrl', 'ollamaModel',
       'selectedModel', 'activeConfigs',
       'chatHistory', 'chatSessions', 'currentSessionId',
-      'systemPrompt', 'customInstruction',
+      'systemPrompt', 'customInstruction', 'tabSummaryInstruction',
       'defaultModel', 'autoModelSwitch',
       'dataAnalysis', 'searchEnabled', 'searchEngine',
       'pluginNameGenerator', 'pluginAddressGenerator', 'pluginCsvGenerator', 'pluginEmailGrouper',
@@ -375,6 +398,12 @@ export default function Sidebar() {
         AppStorage.set({ customInstruction: 'Always format your responses using Markdown. Use code blocks for code snippets and lists for structured information.' });
       }
       
+      if (result.tabSummaryInstruction !== undefined) {
+        setTabSummaryInstruction(result.tabSummaryInstruction);
+      } else {
+        AppStorage.set({ tabSummaryInstruction: 'Please provide a concise summary of the current page context.' });
+      }
+      
       if (result.defaultModel !== undefined) setDefaultModel(result.defaultModel);
       if (result.autoModelSwitch !== undefined) setAutoModelSwitch(result.autoModelSwitch);
       if (result.dataAnalysis !== undefined) setDataAnalysis(result.dataAnalysis);
@@ -406,6 +435,7 @@ export default function Sidebar() {
         selectedModel: result.selectedModel || (configs.find(c => c.isActive)?.provider || 'gemini'),
         systemPrompt: result.systemPrompt !== undefined ? result.systemPrompt : 'You are a helpful and intelligent AI assistant. Provide clear, accurate, and concise responses.',
         customInstruction: result.customInstruction !== undefined ? result.customInstruction : 'Always format your responses using Markdown. Use code blocks for code snippets and lists for structured information.',
+        tabSummaryInstruction: result.tabSummaryInstruction !== undefined ? result.tabSummaryInstruction : 'Please provide a concise summary of the current page context.',
         defaultModel: result.defaultModel || 'gemini',
         autoModelSwitch: result.autoModelSwitch || false,
         dataAnalysis: result.dataAnalysis || false,
@@ -433,6 +463,7 @@ export default function Sidebar() {
       if (changes.selectedModel !== undefined) setSelectedModel(changes.selectedModel);
       if (changes.systemPrompt !== undefined) setSystemPrompt(changes.systemPrompt);
       if (changes.customInstruction !== undefined) setCustomInstruction(changes.customInstruction);
+      if (changes.tabSummaryInstruction !== undefined) setTabSummaryInstruction(changes.tabSummaryInstruction);
       if (changes.defaultModel !== undefined) setDefaultModel(changes.defaultModel);
       if (changes.autoModelSwitch !== undefined) setAutoModelSwitch(changes.autoModelSwitch);
       if (changes.dataAnalysis !== undefined) setDataAnalysis(changes.dataAnalysis);
@@ -617,6 +648,48 @@ export default function Sidebar() {
       }
       await AppStorage.set(updates);
     }
+  };
+
+  const handleDropdownSelect = async (provider, model) => {
+    let target = activeConfigs.find(c => c.provider === provider && c.model === model);
+    if (!target) {
+       target = activeConfigs.find(c => c.provider === provider);
+    }
+    
+    if (target) {
+      const updated = activeConfigs.map(c => ({ ...c, isActive: c.id === target.id }));
+      setActiveConfigs(updated);
+      setSelectedModel(provider);
+      const updates = { activeConfigs: updated, selectedModel: provider };
+      
+      if (provider === 'gemini') {
+        setGeminiModel(model);
+        updates.geminiApiKey = target.apiKey;
+        updates.geminiModel = model;
+      } else if (provider === 'openai') {
+        setOpenAiModel(model);
+        updates.openAiApiKey = target.apiKey;
+        updates.openAiModel = model;
+      } else if (provider === 'huggingface') {
+        setHfModel(model);
+        updates.hfApiKey = target.apiKey;
+        updates.hfModel = model;
+      } else if (provider === 'ollama') {
+        setOllamaModel(model);
+        updates.ollamaUrl = target.url;
+        updates.ollamaModel = model;
+      }
+      await AppStorage.set(updates);
+    } else {
+      setSelectedModel(provider);
+      const updates = { selectedModel: provider };
+      if (provider === 'gemini') { setGeminiModel(model); updates.geminiModel = model; }
+      else if (provider === 'openai') { setOpenAiModel(model); updates.openAiModel = model; }
+      else if (provider === 'huggingface') { setHfModel(model); updates.hfModel = model; }
+      else if (provider === 'ollama') { setOllamaModel(model); updates.ollamaModel = model; }
+      await AppStorage.set(updates);
+    }
+    setIsModelDropdownOpen(false);
   };
 
   const handleDeleteConfig = async (configId) => {
@@ -1025,10 +1098,17 @@ export default function Sidebar() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  async function sendMessage() {
-    if (!message.trim() || loading) return;
+  const handleSummarizePage = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    sendMessage(tabSummaryInstruction, true);
+  };
+
+  async function sendMessage(overrideMessage = null, forceContext = false) {
+    const isEvent = overrideMessage && typeof overrideMessage === 'object' && overrideMessage.nativeEvent;
+    const actualOverrideMessage = isEvent ? '' : (typeof overrideMessage === 'string' ? overrideMessage : '');
     
-    const userMessage = message.trim();
+    const userMessage = (actualOverrideMessage || message).trim();
+    if (!userMessage || loading) return;
 
     // Validation based on selected model (using truth settings)
     const isConfigured = () => {
@@ -1046,7 +1126,7 @@ export default function Sidebar() {
         { role: 'user', text: userMessage },
         { role: 'assistant', text: "⚠️ **Model API not configured!**\n\nPlease select an active model and configure its API key in the **Settings** before chatting." }
       ]);
-      setMessage('');
+      if (!actualOverrideMessage) setMessage('');
       return;
     }
 
@@ -1055,33 +1135,38 @@ export default function Sidebar() {
       { role: 'user', text: userMessage }
     ]);
 
-    setMessage('');
+    if (!actualOverrideMessage) setMessage('');
     setLoading(true);
 
     let domContext = '';
 
-    if (includeContext && chrome && chrome.tabs) {
-      try {
-        // Try to fetch context from the active tab if running as a Chrome Extension
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (activeTab && activeTab.id) {
-          const contextResponse = await new Promise((resolve) => {
-            chrome.tabs.sendMessage(activeTab.id, { action: "get_page_context" }, (response) => {
-              if (chrome.runtime.lastError) {
-                console.warn("Could not fetch page context. Ensure content script is injected.", chrome.runtime.lastError);
-                resolve(null);
-              } else {
-                resolve(response);
-              }
+    if (includeContext || forceContext) {
+      if (typeof chrome !== 'undefined' && chrome.tabs) {
+        try {
+          // Try to fetch context from the active tab if running as a Chrome Extension
+          const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (activeTab && activeTab.id) {
+            const contextResponse = await new Promise((resolve) => {
+              chrome.tabs.sendMessage(activeTab.id, { action: "get_page_context" }, (response) => {
+                if (chrome.runtime.lastError) {
+                  console.warn("Could not fetch page context. Ensure content script is injected.", chrome.runtime.lastError);
+                  resolve(null);
+                } else {
+                  resolve(response);
+                }
+              });
             });
-          });
-          
-          if (contextResponse && contextResponse.text) {
-            domContext = `URL: ${contextResponse.url}\nTitle: ${contextResponse.title}\n\nContent:\n${contextResponse.text}`;
+            
+            if (contextResponse && contextResponse.text) {
+              domContext = `URL: ${contextResponse.url}\nTitle: ${contextResponse.title}\n\nContent:\n${contextResponse.text}`;
+            }
           }
+        } catch (err) {
+          console.warn("Error querying active tab. Continuing without context.", err);
         }
-      } catch (err) {
-        console.warn("Error querying active tab. Continuing without context.", err);
+      } else {
+        // Fallback for AI Studio Web Preview environment
+        domContext = `URL: https://example.com/mock-page\nTitle: Mock Example Page\n\nContent:\nThis is simulated page content. The extension is running as a web application preview. The text extraction and summarization feature works successfully by extracting this simulated text context.`;
       }
     }
 
@@ -1131,12 +1216,8 @@ export default function Sidebar() {
       setUploadedFiles([]);
     }
 
-    const payloadObj = {
-      message: userMessage,
-      chatHistory: chat,
-      domContext,
-      includeScreenshot,
-      thinkMode,
+    const attemptList = [];
+    attemptList.push({
       model: savedSettings.selectedModel,
       geminiApiKey: savedSettings.geminiApiKey,
       geminiModel: savedSettings.geminiModel,
@@ -1146,26 +1227,47 @@ export default function Sidebar() {
       hfModel: savedSettings.hfModel,
       ollamaUrl: savedSettings.ollamaUrl,
       ollamaModel: savedSettings.ollamaModel
-    };
+    });
+
+    if (autoModelSwitch && activeConfigs && activeConfigs.length > 0) {
+      const mainModelId = attemptList[0][savedSettings.selectedModel === 'gemini' ? 'geminiModel' : savedSettings.selectedModel === 'openai' ? 'openAiModel' : savedSettings.selectedModel === 'huggingface' ? 'hfModel' : 'ollamaModel'];
+      activeConfigs.filter(c => c.provider !== savedSettings.selectedModel || c.model !== mainModelId).forEach(c => {
+         let fallback = { ...attemptList[0], model: c.provider };
+         if (c.provider === 'gemini') { fallback.geminiApiKey = c.apiKey; fallback.geminiModel = c.model; }
+         else if (c.provider === 'openai') { fallback.openAiApiKey = c.apiKey; fallback.openAiModel = c.model; }
+         else if (c.provider === 'huggingface') { fallback.hfApiKey = c.apiKey; fallback.hfModel = c.model; }
+         else if (c.provider === 'ollama') { fallback.ollamaUrl = c.url; fallback.ollamaModel = c.model; }
+         attemptList.push(fallback);
+      });
+    }
 
     setChat((items) => [...items, { role: 'assistant', text: '', status: '' }]);
 
-    if (chrome && chrome.runtime && chrome.runtime.id && chrome.runtime.connect) {
-      try {
-        portRef.current = chrome.runtime.connect({ name: 'chat_stream' });
-        
-        portRef.current.onMessage.addListener((msg) => {
-          if (msg.error) {
+    const executeRequest = (attemptIndex) => {
+      const currentConfig = attemptList[attemptIndex];
+      const payloadObj = {
+        message: userMessage,
+        chatHistory: chat,
+        domContext,
+        includeScreenshot,
+        thinkMode,
+        ...currentConfig
+      };
+
+      if (attemptIndex > 0) {
+        setChat(prev => {
+          const next = [...prev];
+          next[next.length - 1].status = `Switched to fallback model (${currentConfig.model})...`;
+          return next;
+        });
+      }
+
+      const handleError = (errorMsg) => {
+         if (autoModelSwitch && attemptIndex < attemptList.length - 1) {
+            executeRequest(attemptIndex + 1);
+         } else {
             setChat(prev => {
               const next = [...prev];
-              let errorMsg = typeof msg.error === 'object' ? JSON.stringify(msg.error) : String(msg.error);
-              // Clean up typical JSON error strings if present
-              try {
-                const parsed = JSON.parse(errorMsg);
-                if (parsed.error?.message) errorMsg = parsed.error.message;
-                else if (parsed.message) errorMsg = parsed.message;
-              } catch(e) {}
-              
               if (next[next.length - 1].text) {
                 next[next.length - 1].text += `\n\n**⚠️ Error:** ${errorMsg}`;
               } else {
@@ -1175,77 +1277,99 @@ export default function Sidebar() {
               return next;
             });
             setLoading(false);
-          } else if (msg.status) {
-            setChat(prev => {
-              const next = [...prev];
-              next[next.length - 1].status = msg.status;
-              return next;
-            });
-          } else if (msg.chunk) {
-            setChat(prev => {
-              const next = [...prev];
-              next[next.length - 1].text += msg.chunk;
-              next[next.length - 1].status = ''; // clear status when getting text
-              return next;
-            });
-          } else if (msg.done) {
-            setChat(prev => {
-              const next = [...prev];
-              next[next.length - 1].status = '';
-              return next;
-            });
-            setLoading(false);
-            if (portRef.current) {
-                portRef.current.disconnect();
-                portRef.current = null;
-            }
-          }
-        });
+         }
+      };
 
-        portRef.current.postMessage({ type: 'AI_CHAT_REQUEST', ...payloadObj });
-      } catch (err) {
-        setChat(prev => {
-          const next = [...prev];
-          next[next.length - 1].text = "Extension connection failed.";
-          return next;
-        });
-        setLoading(false);
-      }
-    } else {
-      // Fallback to our Web API Service Layer when not in Chrome Extension mode
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadObj)
-        });
-        
-        if (!res.ok) throw new Error("API request failed");
-        
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunkStr = decoder.decode(value, { stream: true });
+      if (chrome && chrome.runtime && chrome.runtime.id && chrome.runtime.connect) {
+        try {
+          portRef.current = chrome.runtime.connect({ name: 'chat_stream' });
           
-          setChat(prev => {
-            const next = [...prev];
-            next[next.length - 1].text += chunkStr;
-            return next;
+          portRef.current.onMessage.addListener((msg) => {
+            if (msg.error) {
+              let errorMsg = typeof msg.error === 'object' ? JSON.stringify(msg.error) : String(msg.error);
+              try {
+                const parsed = JSON.parse(errorMsg);
+                if (parsed.error?.message) errorMsg = parsed.error.message;
+                else if (parsed.message) errorMsg = parsed.message;
+              } catch(e) {}
+              handleError(errorMsg);
+            } else if (msg.status) {
+              setChat(prev => {
+                const next = [...prev];
+                next[next.length - 1].status = msg.status;
+                return next;
+              });
+            } else if (msg.chunk) {
+              setChat(prev => {
+                const next = [...prev];
+                next[next.length - 1].text += msg.chunk;
+                next[next.length - 1].status = ''; // clear status when getting text
+                return next;
+              });
+            } else if (msg.done) {
+              setChat(prev => {
+                const next = [...prev];
+                next[next.length - 1].status = '';
+                return next;
+              });
+              setLoading(false);
+              if (portRef.current) {
+                  portRef.current.disconnect();
+                  portRef.current = null;
+              }
+            }
           });
+
+          portRef.current.postMessage({ type: 'AI_CHAT_REQUEST', ...payloadObj });
+        } catch (err) {
+          handleError("Extension connection failed.");
         }
-      } catch (error) {
-        setChat(prev => {
-          const next = [...prev];
-          next[next.length - 1].text = "Error connecting to Web API service layer.";
-          return next;
-        });
-      } finally {
-        setLoading(false);
+      } else {
+        // Fallback to our Web API Service Layer when not in Chrome Extension mode
+        const doFetch = async () => {
+          try {
+            const res = await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payloadObj)
+            });
+            
+            if (!res.ok) {
+              const errText = await res.text();
+              throw new Error(errText || "API request failed");
+            }
+            
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                setLoading(false);
+                break;
+              }
+              const chunkStr = decoder.decode(value, { stream: true });
+              
+              setChat(prev => {
+                const next = [...prev];
+                next[next.length - 1].text += chunkStr;
+                return next;
+              });
+            }
+          } catch (error) {
+             let errStr = error.message || "Error connecting to Web API service layer.";
+             try {
+               const parsed = JSON.parse(errStr);
+               if (parsed.error) errStr = parsed.error;
+             } catch(e) {}
+             handleError(errStr);
+          }
+        };
+        doFetch();
       }
-    }
+    };
+
+    executeRequest(0);
   }
 
   if (showSettings) {
@@ -1601,6 +1725,16 @@ export default function Sidebar() {
                     className="w-full h-20 border border-slate-300 px-3 py-2 rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm resize-none"
                     placeholder="Always answer in markdown..."
                   />
+                </div>
+                <div>
+                  <label className="block text-[12px] font-medium text-slate-700 mb-1">Tab Summary Instruction</label>
+                  <textarea 
+                    value={tabSummaryInstruction}
+                    onChange={(e) => { setTabSummaryInstruction(e.target.value); AppStorage.set({ tabSummaryInstruction: e.target.value }); }}
+                    className="w-full h-20 border border-slate-300 px-3 py-2 rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm resize-none"
+                    placeholder="Please provide a concise summary of the current page context."
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">This prompt is sent when you click the Summarize Page button.</p>
                 </div>
                 <div className="pt-2 border-t border-slate-100">
                   <label className="block text-[12px] font-medium text-slate-700 mb-1">Default Model</label>
@@ -2004,12 +2138,7 @@ return (
                       {geminiModelList.map(m => (
                         <button
                           key={m}
-                          onClick={() => {
-                            setSelectedModel('gemini');
-                            setGeminiModel(m);
-                            AppStorage.set({ selectedModel: 'gemini', geminiModel: m });
-                            setIsModelDropdownOpen(false);
-                          }}
+                          onClick={() => handleDropdownSelect('gemini', m)}
                           className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
                             savedSettings.selectedModel === 'gemini' && savedSettings.geminiModel === m ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
                           }`}
@@ -2034,12 +2163,7 @@ return (
                       {['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'].map(m => (
                         <button
                           key={m}
-                          onClick={() => {
-                            setSelectedModel('openai');
-                            setOpenAiModel(m);
-                            AppStorage.set({ selectedModel: 'openai', openAiModel: m });
-                            setIsModelDropdownOpen(false);
-                          }}
+                          onClick={() => handleDropdownSelect('openai', m)}
                           className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
                             savedSettings.selectedModel === 'openai' && savedSettings.openAiModel === m ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
                           }`}
@@ -2064,12 +2188,7 @@ return (
                       {['mistralai/Mistral-Nemo-Instruct-2407', 'meta-llama/Meta-Llama-3-8B-Instruct', 'google/gemma-2-9b-it', 'HuggingFaceH4/zephyr-7b-beta'].map(m => (
                         <button
                           key={m}
-                          onClick={() => {
-                            setSelectedModel('huggingface');
-                            setHfModel(m);
-                            AppStorage.set({ selectedModel: 'huggingface', hfModel: m });
-                            setIsModelDropdownOpen(false);
-                          }}
+                          onClick={() => handleDropdownSelect('huggingface', m)}
                           className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
                             savedSettings.selectedModel === 'huggingface' && savedSettings.hfModel === m ? 'bg-amber-50 text-amber-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
                           }`}
@@ -2094,12 +2213,7 @@ return (
                       {['llama3', 'llama3.1', 'mistral', 'gemma', 'gemma2', 'phi3', 'qwen2'].map(m => (
                         <button
                           key={m}
-                          onClick={() => {
-                            setSelectedModel('ollama');
-                            setOllamaModel(m);
-                            AppStorage.set({ selectedModel: 'ollama', ollamaModel: m });
-                            setIsModelDropdownOpen(false);
-                          }}
+                          onClick={() => handleDropdownSelect('ollama', m)}
                           className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
                             savedSettings.selectedModel === 'ollama' && savedSettings.ollamaModel === m ? 'bg-slate-100 text-slate-800 font-medium' : 'text-slate-600 hover:bg-slate-100'
                           }`}
@@ -2181,7 +2295,7 @@ return (
               )}
               
               {item.text && (
-                <div className={`px-3.5 py-2.5 rounded-2xl ${
+                <div className={`px-3.5 py-2.5 rounded-2xl break-words overflow-x-auto ${
                   item.role === 'user'
                     ? 'bg-slate-900 text-slate-50 rounded-tr-sm shadow-sm whitespace-pre-wrap'
                     : 'bg-slate-50 border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm'
@@ -2189,30 +2303,35 @@ return (
                   {item.role === 'user' ? (
                     item.text
                   ) : (
-                    <div className="markdown-body text-[13px]">
-                      <ReactMarkdown
-                        components={{
-                          code({node, inline, className, children, ...props}) {
-                            const match = /language-(\w+)/.exec(className || '');
-                            return !inline && match ? (
-                              <SyntaxHighlighter
-                                {...props}
-                                children={String(children).replace(/\n$/, '')}
-                                style={vscDarkPlus}
-                                language={match[1]}
-                                PreTag="div"
-                                className="rounded-md !mt-2 !mb-2 !text-[12px]"
-                              />
-                            ) : (
-                              <code {...props} className={`${className} bg-slate-100 text-slate-800 px-1 py-0.5 rounded text-[12px]`}>
-                                {children}
-                              </code>
-                            );
-                          }
-                        }}
-                      >
-                        {item.text}
-                      </ReactMarkdown>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="markdown-body text-[13px]">
+                        <ReactMarkdown
+                          components={{
+                            code({node, inline, className, children, ...props}) {
+                              const match = /language-(\w+)/.exec(className || '');
+                              return !inline && match ? (
+                                <SyntaxHighlighter
+                                  {...props}
+                                  children={String(children).replace(/\n$/, '')}
+                                  style={vscDarkPlus}
+                                  language={match[1]}
+                                  PreTag="div"
+                                  className="rounded-md !mt-2 !mb-2 !text-[12px]"
+                                />
+                              ) : (
+                                <code {...props} className={`${className} bg-slate-100 text-slate-800 px-1 py-0.5 rounded text-[12px] break-all`}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                          }}
+                        >
+                          {item.text}
+                        </ReactMarkdown>
+                      </div>
+                      <div className="flex justify-end pt-1 mt-1 border-t border-slate-200/60">
+                        <CopyButton text={item.text} />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2677,6 +2796,14 @@ return (
             </button>
 
             <div className="flex items-center gap-1">
+              <button 
+                onClick={handleSummarizePage}
+                disabled={loading}
+                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer disabled:opacity-40" 
+                title="Summarize Page"
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
               <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer" title="Voice Input">
                 <Mic className="w-4 h-4" />
               </button>
