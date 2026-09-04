@@ -20,16 +20,30 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: |
-          npm install
+        run: npm install
 
-      - name: Build extension
-        run: |
-          npm run build
+      - name: Build web assets
+        run: npm run build
 
-      - name: Package extension
+      - name: Create extension package
         run: |
-          zip -r AI-Browser-Copilot-extension.zip dist
+          rm -rf release
+          mkdir -p release
+
+          cp manifest.json release/
+          cp -r src release/
+
+          if [ -d dist ]; then
+            cp -r dist/* release/ || true
+          fi
+
+          cd release
+          zip -r ../AI-Browser-Copilot-extension.zip .
+
+      - name: Verify manifest
+        run: |
+          test -f release/manifest.json
+          echo "Manifest found"
 
       - name: Upload extension artifact
         uses: actions/upload-artifact@v4
