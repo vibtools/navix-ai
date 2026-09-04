@@ -3,6 +3,8 @@ import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, M
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { AppStorage } from '../core/appStorage.js';
+import { createRequestId, createSessionId } from '../core/sessionProtocol.js';
 
 const CopyButton = ({ text }) => {
   const [copied, setCopied] = useState(false);
@@ -118,84 +120,6 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
     </div>
   );
 }
-
-// --- Storage Helper: Supports chrome.storage and IndexedDB fallback ---
-const dbPromise = new Promise((resolve) => {
-  if (typeof window === 'undefined' || typeof indexedDB === 'undefined') {
-    resolve(null);
-    return;
-  }
-  try {
-    const request = indexedDB.open('AICopilotDB', 1);
-    request.onupgradeneeded = (e) => {
-      e.target.result.createObjectStore('settings');
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => resolve(null);
-  } catch (err) {
-    resolve(null);
-  }
-});
-
-const AppStorage = {
-  async get(keys) {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      return new Promise(res => chrome.storage.local.get(keys, res));
-    }
-    const db = await dbPromise;
-    if (!db) {
-      const result = {};
-      keys.forEach(k => {
-        try { const val = localStorage.getItem(`copilot_${k}`); if (val !== null) result[k] = JSON.parse(val); } catch(e){}
-      });
-      return result;
-    }
-    const tx = db.transaction('settings', 'readonly');
-    const store = tx.objectStore('settings');
-    const result = {};
-    await Promise.all(keys.map(k => new Promise(res => {
-      const req = store.get(k);
-      req.onsuccess = () => { if(req.result !== undefined) result[k] = req.result; res(); };
-      req.onerror = () => res();
-    })));
-    return result;
-  },
-  async set(data) {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set(data);
-      return;
-    }
-    const db = await dbPromise;
-    if (!db) {
-      Object.entries(data).forEach(([k, v]) => {
-        try { localStorage.setItem(`copilot_${k}`, JSON.stringify(v)); } catch(e){}
-      });
-      window.dispatchEvent(new CustomEvent('app-storage-changed', { detail: data }));
-      return;
-    }
-    const tx = db.transaction('settings', 'readwrite');
-    const store = tx.objectStore('settings');
-    await Promise.all(Object.entries(data).map(([k, v]) => new Promise(res => {
-      const req = store.put(v, k);
-      req.onsuccess = () => res();
-      req.onerror = () => res();
-    })));
-    window.dispatchEvent(new CustomEvent('app-storage-changed', { detail: data }));
-  },
-  listen(callback) {
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.onChanged.addListener((changes, area) => {
-        if (area === 'local') {
-          const parsed = {};
-          for (let [k, v] of Object.entries(changes)) parsed[k] = v.newValue;
-          callback(parsed);
-        }
-      });
-    }
-    window.addEventListener('app-storage-changed', (e) => callback(e.detail));
-  }
-};
-// ----------------------------------------------------------------------
 
 export default function Sidebar() {
   const [message, setMessage] = useState('');
@@ -321,6 +245,7 @@ export default function Sidebar() {
   
   const scrollRef = useRef(null);
   const portRef = useRef(null);
+  const abortControllerRef = useRef(null);
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -473,7 +398,11 @@ export default function Sidebar() {
     });
     
     // Listen for cross-tab or storage changes
-    AppStorage.listen((changes) => {
+    const unsubscribeStorage = AppStorage.listen((changes) => {
+      if (changes.__storageError) {
+        console.error('Storage operation failed:', changes.__storageError);
+        return;
+      }
       setSavedSettings(prev => ({ ...prev, ...changes }));
       if (changes.activeConfigs !== undefined) setActiveConfigs(changes.activeConfigs);
       if (changes.selectedModel !== undefined) setSelectedModel(changes.selectedModel);
@@ -510,6 +439,8 @@ export default function Sidebar() {
         });
       }
     });
+
+    return unsubscribeStorage;
   }, []);
 
   useEffect(() => {
@@ -522,7 +453,7 @@ export default function Sidebar() {
           let newSessions = [...prevSessions];
           
           if (!sessionId) {
-            sessionId = Date.now().toString();
+            sessionId = createSessionId();
             setCurrentSessionId(sessionId);
             AppStorage.set({ currentSessionId: sessionId });
           }
@@ -552,7 +483,7 @@ export default function Sidebar() {
         });
       }
     }
-  }, [chat, chatLoaded]);
+  }, [chat, chatLoaded, currentSessionId]);
 
   useEffect(() => {
     // Scroll to bottom on new message
@@ -593,8 +524,28 @@ export default function Sidebar() {
 
   const clearAllHistory = () => {
     setChatSessions([]);
-    AppStorage.set({ chatSessions: [] });
-    startNewChat();
+    setChat([]);
+    setCurrentSessionId(null);
+    AppStorage.set({ chatSessions: [], chatHistory: [], currentSessionId: null });
+    setShowHistory(false);
+  };
+
+  const clearCurrentChat = () => {
+    const nextSessions = currentSessionId
+      ? chatSessions.filter((session) => session.id !== currentSessionId)
+      : chatSessions;
+    setChatSessions(nextSessions);
+    setChat([]);
+    setCurrentSessionId(null);
+    AppStorage.set({
+      chatSessions: nextSessions,
+      chatHistory: [],
+      currentSessionId: null
+    });
+
+    if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
+      chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY', sessionId: currentSessionId }).catch(() => {});
+    }
   };
 
   const clearCurrentForm = () => {
@@ -877,7 +828,8 @@ export default function Sidebar() {
       }
 
       setActiveConfigs(updatedConfigs);
-      await AppStorage.set(storageUpdates);
+      const storageResult = await AppStorage.set(storageUpdates);
+      if (!storageResult.ok) throw new Error(storageResult.error.message);
 
       // FORM KHIALI / RESET:
       // Clear input fields so the form is clean and empty
@@ -992,6 +944,10 @@ export default function Sidebar() {
   }
 
   const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     if (portRef.current) {
       portRef.current.disconnect();
       portRef.current = null;
@@ -1020,33 +976,45 @@ export default function Sidebar() {
       const isImage = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
       
-      const fileData = await new Promise(async (resolve) => {
+      const fileData = await new Promise((resolve) => {
         const reader = new FileReader();
         
         if (isPdf) {
           // Dynamic import for pdfjs
-          const pdfjs = await import('pdfjs-dist/build/pdf.min.mjs');
-          pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-          
-          reader.onload = async (event) => {
-            try {
-              const typedarray = new Uint8Array(event.target.result);
-              const pdf = await pdfjs.getDocument(typedarray).promise;
-              let textContent = '';
-              for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                const page = await pdf.getPage(pageNum);
-                const text = await page.getTextContent();
-                textContent += text.items.map(s => s.str).join(' ') + '\n';
+          import('pdfjs-dist/build/pdf.min.mjs').then((pdfjs) => {
+            pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+            
+            reader.onload = async (event) => {
+              try {
+                const typedarray = new Uint8Array(event.target.result);
+                const pdf = await pdfjs.getDocument(typedarray).promise;
+                let textContent = '';
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                  const page = await pdf.getPage(pageNum);
+                  const text = await page.getTextContent();
+                  textContent += text.items.map(s => s.str).join(' ') + '\n';
+                }
+                resolve({
+                  name: file.name,
+                  type: file.type,
+                  content: textContent,
+                  isImage: false,
+                  isPdf: true
+                });
+              } catch (err) {
+                console.error('Error parsing PDF:', err);
+                resolve({
+                  name: file.name,
+                  type: file.type,
+                  content: 'Error parsing PDF content.',
+                  isImage: false,
+                  isPdf: true
+                });
               }
-              resolve({
-                name: file.name,
-                type: file.type,
-                content: textContent,
-                isImage: false,
-                isPdf: true
-              });
-            } catch (err) {
-              console.error('Error parsing PDF:', err);
+            };
+            reader.readAsArrayBuffer(file);
+          }).catch((err) => {
+            console.error('Error loading PDF support:', err);
               resolve({
                 name: file.name,
                 type: file.type,
@@ -1054,9 +1022,7 @@ export default function Sidebar() {
                 isImage: false,
                 isPdf: true
               });
-            }
-          };
-          reader.readAsArrayBuffer(file);
+          });
         } else if (isImage) {
           reader.onload = async (event) => {
             let textContent = '';
@@ -1097,7 +1063,7 @@ export default function Sidebar() {
       setUploadProgress(Math.round(((i + 1) / files.length) * 100));
       
       // Artificial slight delay to allow UI to render progress if processing is too fast
-      await new Promise(r => setTimeout(r, 50)); 
+      await new Promise((resolve) => { setTimeout(resolve, 50); }); 
     }
     
     setUploadedFiles(prev => [...prev, ...newFiles]);
@@ -1144,6 +1110,12 @@ export default function Sidebar() {
       ]);
       if (!actualOverrideMessage) setMessage('');
       return;
+    }
+
+    const requestSessionId = currentSessionId || createSessionId();
+    if (!currentSessionId) {
+      setCurrentSessionId(requestSessionId);
+      await AppStorage.set({ currentSessionId: requestSessionId });
     }
 
     setChat((items) => [
@@ -1261,9 +1233,12 @@ export default function Sidebar() {
 
     const executeRequest = (attemptIndex) => {
       const currentConfig = attemptList[attemptIndex];
+      const requestId = createRequestId();
       const payloadObj = {
         message: userMessage,
         chatHistory: chat,
+        sessionId: requestSessionId,
+        requestId,
         domContext,
         includeScreenshot,
         thinkMode,
@@ -1296,18 +1271,24 @@ export default function Sidebar() {
          }
       };
 
-      if (chrome && chrome.runtime && chrome.runtime.id && chrome.runtime.connect) {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.id && chrome.runtime.connect) {
         try {
-          portRef.current = chrome.runtime.connect({ name: 'chat_stream' });
+          const streamPort = chrome.runtime.connect({ name: 'chat_stream' });
+          let receivedError = false;
+          portRef.current = streamPort;
           
-          portRef.current.onMessage.addListener((msg) => {
+          streamPort.onMessage.addListener((msg) => {
+            if (msg.requestId && msg.requestId !== requestId) return;
             if (msg.error) {
-              let errorMsg = typeof msg.error === 'object' ? JSON.stringify(msg.error) : String(msg.error);
+              receivedError = true;
+              let errorMsg = typeof msg.error === 'object' ? (msg.error.message || JSON.stringify(msg.error)) : String(msg.error);
               try {
                 const parsed = JSON.parse(errorMsg);
                 if (parsed.error?.message) errorMsg = parsed.error.message;
                 else if (parsed.message) errorMsg = parsed.message;
               } catch(e) {}
+              streamPort.disconnect();
+              if (portRef.current === streamPort) portRef.current = null;
               handleError(errorMsg);
             } else if (msg.status) {
               setChat(prev => {
@@ -1323,31 +1304,48 @@ export default function Sidebar() {
                 return next;
               });
             } else if (msg.done) {
+              if (receivedError) return;
               setChat(prev => {
                 const next = [...prev];
                 next[next.length - 1].status = '';
                 return next;
               });
               setLoading(false);
-              if (portRef.current) {
-                  portRef.current.disconnect();
+              streamPort.disconnect();
+              if (portRef.current === streamPort) {
                   portRef.current = null;
               }
             }
           });
 
-          portRef.current.postMessage({ type: 'AI_CHAT_REQUEST', ...payloadObj });
+          streamPort.onDisconnect.addListener(() => {
+            if (portRef.current !== streamPort) return;
+            portRef.current = null;
+            setLoading(false);
+            setChat(prev => {
+              const next = [...prev];
+              if (next.length > 0 && next[next.length - 1].role === 'assistant') {
+                next[next.length - 1].status = '';
+              }
+              return next;
+            });
+          });
+
+          streamPort.postMessage({ type: 'AI_CHAT_REQUEST', ...payloadObj });
         } catch (err) {
           handleError("Extension connection failed.");
         }
       } else {
         // Fallback to our Web API Service Layer when not in Chrome Extension mode
         const doFetch = async () => {
+          const controller = new AbortController();
+          abortControllerRef.current = controller;
           try {
             const res = await fetch('/api/chat', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payloadObj)
+              body: JSON.stringify(payloadObj),
+              signal: controller.signal
             });
             
             if (!res.ok) {
@@ -1362,6 +1360,7 @@ export default function Sidebar() {
               const { done, value } = await reader.read();
               if (done) {
                 setLoading(false);
+                if (abortControllerRef.current === controller) abortControllerRef.current = null;
                 break;
               }
               const chunkStr = decoder.decode(value, { stream: true });
@@ -1373,12 +1372,15 @@ export default function Sidebar() {
               });
             }
           } catch (error) {
+             if (error.name === 'AbortError') return;
              let errStr = error.message || "Error connecting to Web API service layer.";
              try {
                const parsed = JSON.parse(errStr);
                if (parsed.error) errStr = parsed.error;
              } catch(e) {}
              handleError(errStr);
+          } finally {
+            if (abortControllerRef.current === controller) abortControllerRef.current = null;
           }
         };
         doFetch();
@@ -2253,13 +2255,7 @@ return (
         <div className="flex items-center gap-1.5">
 
           <button 
-            onClick={() => {
-              setChat([]);
-              AppStorage.set({ chatHistory: [] });
-              if (chrome && chrome.runtime && chrome.runtime.id) {
-                chrome.runtime.sendMessage({ type: 'CLEAR_HISTORY' }).catch(() => {});
-              }
-            }} 
+            onClick={clearCurrentChat} 
             className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
             title="Clear Chat"
           >

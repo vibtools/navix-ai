@@ -1,4 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
+import { isAbortError } from '../core/errorContract.js';
+import { abortableDelay, createRequestLifecycle, throwIfAborted } from '../core/requestLifecycle.js';
+import { CHAT_REQUEST, CLEAR_HISTORY, toGeminiHistory, toProviderMessages, validateChatRequest } from '../core/sessionProtocol.js';
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Navix AI installed (Manifest V3)');
@@ -79,33 +82,60 @@ const browserTools = [{
   ]
 }];
 
-async function executeTool(name, args) {
+async function executeTool(name, args, signal) {
+  throwIfAborted(signal);
   return new Promise((resolve) => {
+    let settled = false;
+    let cleanupPendingAction = () => {};
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      cleanupPendingAction();
+      signal?.removeEventListener('abort', onAbort);
+      resolve(result);
+    };
+    const onAbort = () => finish({ error: 'Action cancelled.' });
+    signal?.addEventListener('abort', onAbort, { once: true });
+
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (signal?.aborted) {
+        finish({ error: 'Action cancelled.' });
+        return;
+      }
       const activeTab = tabs[0];
       if (!activeTab || !activeTab.id) {
-        resolve({ error: "No active tab found" });
+        finish({ error: "No active tab found" });
         return;
       }
 
       function updateTabAndWait(tabId, updateProps, actionMsg) {
         chrome.tabs.update(tabId, updateProps, (tab) => {
-          if (chrome.runtime.lastError || !tab) {
-            resolve({ error: "Failed to load page" });
+          if (signal?.aborted) {
+            finish({ error: 'Action cancelled.' });
             return;
           }
+          if (chrome.runtime.lastError || !tab) {
+            finish({ error: "Failed to load page" });
+            return;
+          }
+          let completionDelay = null;
           const listener = (updatedTabId, changeInfo) => {
             if (updatedTabId === tabId && changeInfo.status === 'complete') {
               chrome.tabs.onUpdated.removeListener(listener);
               clearTimeout(fallback);
-              setTimeout(() => resolve({ success: true, message: `${actionMsg} successful` }), 1500); // Give content script time to inject
+              completionDelay = setTimeout(() => finish({ success: true, message: `${actionMsg} successful` }), 1500); // Give content script time to inject
             }
           };
           chrome.tabs.onUpdated.addListener(listener);
           const fallback = setTimeout(() => {
             chrome.tabs.onUpdated.removeListener(listener);
-            resolve({ success: true, message: `${actionMsg} timeout, but likely loaded` });
+            finish({ success: true, message: `${actionMsg} timeout, but likely loaded` });
           }, 10000);
+          cleanupPendingAction = () => {
+            chrome.tabs.onUpdated.removeListener(listener);
+            clearTimeout(fallback);
+            if (completionDelay) clearTimeout(completionDelay);
+          };
         });
       }
 
@@ -117,10 +147,14 @@ async function executeTool(name, args) {
       } else {
         // Send to content script for DOM manipulation (read, click, type)
         chrome.tabs.sendMessage(activeTab.id, { action: name, args }, (response) => {
+          if (signal?.aborted) {
+            finish({ error: 'Action cancelled.' });
+            return;
+          }
           if (chrome.runtime.lastError) {
-             resolve({ error: "Cannot communicate with page. It might be a protected page or refreshing." });
+             finish({ error: "Cannot communicate with page. It might be a protected page or refreshing." });
           } else {
-             resolve(response || { error: "No response from page" });
+             finish(response || { error: "No response from page" });
           }
         });
       }
@@ -130,32 +164,40 @@ async function executeTool(name, args) {
 
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'chat_stream') {
+    let activeRequest = null;
     port.onMessage.addListener(async (message) => {
-      if (message.type === 'AI_CHAT_REQUEST') {
+      if (message.type === CHAT_REQUEST) {
+        activeRequest?.abort();
+        const lifecycle = createRequestLifecycle(port, message.requestId || null);
+        activeRequest = lifecycle;
         try {
-          await handleAIRequestStream(message, port);
+          const request = validateChatRequest(message);
+          await handleAIRequestStream(request, lifecycle);
+          lifecycle.complete();
         } catch (error) {
-          let errorMsg = error.message || 'AI request failed';
-          if (errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
-             errorMsg = "API Rate Limit Exceeded: You have reached your current quota limit for this model. Please wait a minute and try again, or switch to a different model in settings.";
+          if (!isAbortError(error)) {
+            const errorMessage = error?.message || '';
+            if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
+              error.message = 'API Rate Limit Exceeded: You have reached your current quota limit for this model. Please wait a minute and try again, or switch to a different model in settings.';
+            }
+            lifecycle.fail(error);
           }
-          port.postMessage({ error: errorMsg });
-          port.postMessage({ done: true });
+        } finally {
+          if (activeRequest === lifecycle) activeRequest = null;
         }
       }
     });
   }
 });
 
-// Conversation History state
-let chatHistory = [];
-
-async function executeWithRetry(apiCall, port, maxRetries = 3) {
+async function executeWithRetry(apiCall, lifecycle, maxRetries = 3) {
   let retries = 0;
   while (retries < maxRetries) {
+    throwIfAborted(lifecycle.signal);
     try {
       return await apiCall();
     } catch (error) {
+      if (isAbortError(error) || lifecycle.signal.aborted) throw error;
       const errorMsg = error.message || '';
       const isRateLimit = error.status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('quota') || error.status === 503 || errorMsg.includes('503') || error.status === 500 || errorMsg.includes('500') || errorMsg.includes('fetch');
       
@@ -170,22 +212,21 @@ async function executeWithRetry(apiCall, port, maxRetries = 3) {
          delay = parseFloat(retryMatch[1]) * 1000 + 500; // Add 500ms buffer
       }
       
-      if (port) {
-          port.postMessage({ status: `Rate limit hit. Retrying in ${Math.round(delay/1000)}s...` });
-      }
+      lifecycle.post({ status: `Rate limit hit. Retrying in ${Math.round(delay/1000)}s...` });
       console.warn(`API Rate limit. Retrying in ${delay}ms...`, error);
       
-      await new Promise(r => setTimeout(r, delay));
+      await abortableDelay(delay, lifecycle.signal);
       retries++;
     }
   }
 }
 
-async function fetchWithRetry(url, options, port, maxRetries = 3) {
+async function fetchWithRetry(url, options, lifecycle, maxRetries = 3) {
   let retries = 0;
   while (retries < maxRetries) {
+    throwIfAborted(lifecycle.signal);
     try {
-      const res = await fetch(url, options);
+      const res = await fetch(url, { ...options, signal: lifecycle.signal });
       
       if (res.status === 429 || res.status === 503 || res.status === 500) {
         if (retries >= maxRetries - 1) {
@@ -199,45 +240,67 @@ async function fetchWithRetry(url, options, port, maxRetries = 3) {
            if (!isNaN(parsed)) delay = parsed * 1000 + 500;
         }
         
-        if (port) {
-            port.postMessage({ status: `Server busy (HTTP ${res.status}). Retrying in ${Math.round(delay/1000)}s...` });
-        }
+        lifecycle.post({ status: `Server busy (HTTP ${res.status}). Retrying in ${Math.round(delay/1000)}s...` });
         console.warn(`Fetch HTTP ${res.status}. Retrying in ${delay}ms...`);
         
-        await new Promise(r => setTimeout(r, delay));
+        await abortableDelay(delay, lifecycle.signal);
         retries++;
         continue;
       }
       
       return res;
     } catch (err) {
+      if (isAbortError(err) || lifecycle.signal.aborted) throw err;
       if (retries >= maxRetries - 1) throw err;
-      let delay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
-      if (port) port.postMessage({ status: `Network error. Retrying in ${Math.round(delay/1000)}s...` });
+      const delay = Math.pow(2, retries) * 2000 + Math.random() * 1000;
+      lifecycle.post({ status: `Network error. Retrying in ${Math.round(delay/1000)}s...` });
       console.warn(`Network error: ${err.message}. Retrying in ${delay}ms...`);
-      await new Promise(r => setTimeout(r, delay));
+      await abortableDelay(delay, lifecycle.signal);
       retries++;
     }
   }
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'AI_CHAT_REQUEST') {
+  if (message.type === CLEAR_HISTORY) {
+    sendResponse({ success: true, sessionId: message.sessionId || null });
+    return false;
+  }
+
+  if (message.type === CHAT_REQUEST) {
     // Keep standard message listener working for old requests just in case, but we redirect logic 
     // to a pseudo-port so we don't duplicate code
+    let responseText = '';
+    let responseError = null;
     const pseudoPort = {
        postMessage: (msg) => {
-          if (msg.done) sendResponse({ response: "Action completed." });
-          if (msg.error) sendResponse({ error: msg.error });
+          if (msg.chunk) responseText += msg.chunk;
+          if (msg.error) responseError = msg.error;
+          if (msg.done) {
+            sendResponse(responseError
+              ? { error: responseError }
+              : { response: responseText || 'Action completed.' });
+          }
        }
     };
-    handleAIRequestStream(message, pseudoPort).catch(err => sendResponse({error: err.message}));
+    const lifecycle = createRequestLifecycle(pseudoPort, message.requestId || null);
+    try {
+      const request = validateChatRequest(message);
+      handleAIRequestStream(request, lifecycle)
+        .then(() => lifecycle.complete())
+        .catch((error) => lifecycle.fail(error));
+    } catch (error) {
+      lifecycle.fail(error);
+    }
     return true; 
   }
 });
 
-async function handleAIRequestStream(request, port) {
+async function handleAIRequestStream(request, lifecycle) {
   const { message: userMessage, domContext, includeScreenshot, thinkMode, model, geminiApiKey, geminiModel, openAiApiKey, openAiModel, hfApiKey, hfModel, ollamaUrl, ollamaModel } = request;
+  const { signal } = lifecycle;
+  const post = (message) => lifecycle.post(message);
+  throwIfAborted(signal);
   
   let screenshotDataUrl = null;
   if (includeScreenshot) {
@@ -252,13 +315,7 @@ async function handleAIRequestStream(request, port) {
       console.warn("Screenshot failed", e);
     }
   }
-
-  let isAborted = false;
-  if (port && port.onDisconnect) {
-      port.onDisconnect.addListener(() => {
-          isAborted = true;
-      });
-  }
+  throwIfAborted(signal);
 
   if (model === 'gemini') {
     if (!geminiApiKey) throw new Error("Gemini API Key is missing. Please set it in settings.");
@@ -269,6 +326,7 @@ async function handleAIRequestStream(request, port) {
        const base64 = screenshotDataUrl.split(',')[1];
        userParts.push({ inlineData: { data: base64, mimeType: 'image/jpeg' } });
     }
+    const chatHistory = toGeminiHistory(request.chatHistory);
     chatHistory.push({ role: "user", parts: userParts });
 
     let systemInstruction = "You are an autonomous browser agent. You can read pages, click elements, navigate, and perform searches to fulfill the user's requests. IMPORTANT: When interacting with the page (click_element, type_text), prefer using the `data-ai-id` attribute found in the page context. For example, if you see `<button data-ai-id=\"5\">`, use `5` or `[data-ai-id=\"5\"]` as the selector.";
@@ -280,23 +338,22 @@ async function handleAIRequestStream(request, port) {
     let iterations = 0;
     const MAX_ITERATIONS = 15;
     
-    while(!isDone && !isAborted && iterations < MAX_ITERATIONS) {
+    while(!isDone && iterations < MAX_ITERATIONS) {
       iterations++;
-      const abortController = new AbortController();
-      if (isAborted) break;
+      throwIfAborted(signal);
 
       const responseStream = await executeWithRetry(() => ai.models.generateContentStream({
         model: geminiModel || "gemini-2.5-flash",
         contents: chatHistory,
-        config: { tools: browserTools, systemInstruction }
-      }), port, 4);
+        config: { tools: browserTools, systemInstruction, abortSignal: signal }
+      }), lifecycle, 4);
       
       let hasToolCalls = false;
       let currentToolCalls = [];
       let modelParts = [];
       
       for await (const chunk of responseStream) {
-        if (isAborted) break;
+        throwIfAborted(signal);
         if (chunk.candidates && chunk.candidates[0] && chunk.candidates[0].content && chunk.candidates[0].content.parts) {
             modelParts.push(...chunk.candidates[0].content.parts);
         }
@@ -308,16 +365,14 @@ async function handleAIRequestStream(request, port) {
         
         if (chunk.text) {
           finalAiText += chunk.text;
-          port.postMessage({ chunk: chunk.text });
+          post({ chunk: chunk.text });
         }
       }
-      
-      if (isAborted) break;
 
       if (hasToolCalls) {
         // Update UI with status
         const actionNames = currentToolCalls.map(c => c.name).join(', ');
-        port.postMessage({ status: `Executing: ${actionNames}...` });
+        post({ status: `Executing: ${actionNames}...` });
 
         chatHistory.push({
            role: "model",
@@ -326,12 +381,10 @@ async function handleAIRequestStream(request, port) {
         
         const functionResponses = [];
         for (const call of currentToolCalls) {
-          if (isAborted) break;
-          const result = await executeTool(call.name, call.args);
+          throwIfAborted(signal);
+          const result = await executeTool(call.name, call.args, signal);
           functionResponses.push({ name: call.name, response: result });
         }
-        
-        if (isAborted) break;
 
         chatHistory.push({
           role: "user",
@@ -345,25 +398,15 @@ async function handleAIRequestStream(request, port) {
     if (iterations >= MAX_ITERATIONS) {
       finalAiText += "\n\n*[Stopped automatically after reaching maximum action steps to prevent infinite loop. Please provide more specific instructions if needed.]*";
       chatHistory.push({ role: "model", parts: [{ text: finalAiText }] });
-      port.postMessage({ chunk: "\n\n*[Stopped automatically to prevent infinite loops]*" });
-      port.postMessage({ done: true });
+      post({ chunk: "\n\n*[Stopped automatically to prevent infinite loops]*" });
       return;
-    }
-
-    if (isAborted) {
-        if (!finalAiText) finalAiText = "Generation stopped by user.";
-        else finalAiText += "\n\n*[Stopped]*";
-        // Can't post back because port is dead, just save history
-        chatHistory.push({ role: "model", parts: [{ text: finalAiText }] });
-        return;
     }
 
     if (!finalAiText) {
        finalAiText = "Action completed.";
-       port.postMessage({ chunk: finalAiText });
+       post({ chunk: finalAiText });
     }
     chatHistory.push({ role: "model", parts: [{ text: finalAiText }] });
-    port.postMessage({ done: true });
   } 
   
   else if (model === 'openai') {
@@ -372,11 +415,7 @@ async function handleAIRequestStream(request, port) {
     if (thinkMode) systemInstruction += "\n\nTHINKING MODE ENABLED: Before providing your final answer or taking any action, you MUST output a detailed, step-by-step reasoning process. Wrap your reasoning using markdown blockquotes (e.g. starting lines with >). Ensure you analyze the user's request and the page context thoroughly before acting.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
-    const messages = [{ role: 'system', content: systemInstruction }];
-    chatHistory.forEach(msg => {
-      if (msg.role === 'user') messages.push({ role: 'user', content: msg.parts[0].text || JSON.stringify(msg.parts) });
-      else if (msg.role === 'model') messages.push({ role: 'assistant', content: msg.parts[0].text || "Action completed." });
-    });
+    const messages = [{ role: 'system', content: systemInstruction }, ...toProviderMessages(request.chatHistory)];
     
     let contentForUser = userMessage;
     if (screenshotDataUrl) {
@@ -391,7 +430,7 @@ async function handleAIRequestStream(request, port) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${openAiApiKey.trim()}` },
       body: JSON.stringify({ model: openAiModel || 'gpt-4o', messages, stream: true })
-    }, port, 4);
+    }, lifecycle, 4);
     
     if (!res.ok) {
        const text = await res.text();
@@ -410,6 +449,7 @@ async function handleAIRequestStream(request, port) {
     let fullText = "";
     
     while (true) {
+      throwIfAborted(signal);
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value, { stream: true });
@@ -421,16 +461,13 @@ async function handleAIRequestStream(request, port) {
                const text = data.choices[0].delta?.content || "";
                if (text) {
                   fullText += text;
-                  port.postMessage({ chunk: text });
+                  post({ chunk: text });
                }
             } catch(e) {}
          }
       }
     }
     
-    chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
-    chatHistory.push({ role: "model", parts: [{ text: fullText }] });
-    port.postMessage({ done: true });
   }
   
   else if (model === 'huggingface') {
@@ -439,11 +476,7 @@ async function handleAIRequestStream(request, port) {
     if (thinkMode) systemInstruction += "\n\nTHINKING MODE ENABLED: Before providing your final answer or taking any action, you MUST output a detailed, step-by-step reasoning process. Wrap your reasoning using markdown blockquotes (e.g. starting lines with >). Ensure you analyze the user's request and the page context thoroughly before acting.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
-    const messages = [{ role: 'system', content: systemInstruction }];
-    chatHistory.forEach(msg => {
-      if (msg.role === 'user') messages.push({ role: 'user', content: msg.parts[0].text });
-      else if (msg.role === 'model') messages.push({ role: 'assistant', content: msg.parts[0].text });
-    });
+    const messages = [{ role: 'system', content: systemInstruction }, ...toProviderMessages(request.chatHistory)];
     messages.push({ role: 'user', content: userMessage });
 
     const activeHfModel = hfModel || 'mistralai/Mistral-Nemo-Instruct-2407';
@@ -451,7 +484,7 @@ async function handleAIRequestStream(request, port) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hfApiKey.trim()}` },
       body: JSON.stringify({ model: activeHfModel, messages, max_tokens: 500 })
-    }, port, 4);
+    }, lifecycle, 4);
     
     const textResp = await res.text();
     let data;
@@ -469,10 +502,7 @@ async function handleAIRequestStream(request, port) {
     
     const text = data.choices[0].message.content;
     
-    chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
-    chatHistory.push({ role: "model", parts: [{ text }] });
-    port.postMessage({ chunk: text });
-    port.postMessage({ done: true });
+    post({ chunk: text });
   }
   
   else if (model === 'ollama') {
@@ -481,11 +511,7 @@ async function handleAIRequestStream(request, port) {
     if (thinkMode) systemInstruction += "\n\nTHINKING MODE ENABLED: Before providing your final answer or taking any action, you MUST output a detailed, step-by-step reasoning process. Wrap your reasoning using markdown blockquotes (e.g. starting lines with >). Ensure you analyze the user's request and the page context thoroughly before acting.";
     if (domContext) systemInstruction += `\n\n--- CURRENT PAGE CONTEXT ---\n${domContext}`;
     
-    const messages = [{ role: 'system', content: systemInstruction }];
-    chatHistory.forEach(msg => {
-      if (msg.role === 'user') messages.push({ role: 'user', content: msg.parts[0].text });
-      else if (msg.role === 'model') messages.push({ role: 'assistant', content: msg.parts[0].text });
-    });
+    const messages = [{ role: 'system', content: systemInstruction }, ...toProviderMessages(request.chatHistory)];
     messages.push({ role: 'user', content: userMessage });
 
     // Use /api/chat endpoint which is OpenAI compatible format for Ollama
@@ -493,13 +519,14 @@ async function handleAIRequestStream(request, port) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: ollamaModel || 'llama3', messages })
-    }, port, 4).catch(async (e) => {
+    }, lifecycle, 4).catch(async (error) => {
+        if (isAbortError(error) || signal.aborted) throw error;
         // Fallback to native ollama api if OpenAI wrapper isn't working
         const nativeRes = await fetchWithRetry(`${ollamaUrl.replace(/\/$/, '')}/api/chat`, {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({ model: ollamaModel || 'llama3', messages, stream: false })
-        }, port, 4);
+        }, lifecycle, 4);
         return nativeRes;
     });
     
@@ -519,10 +546,7 @@ async function handleAIRequestStream(request, port) {
     
     const text = data.message ? data.message.content : data.choices[0].message.content;
     
-    chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
-    chatHistory.push({ role: "model", parts: [{ text }] });
-    port.postMessage({ chunk: text });
-    port.postMessage({ done: true });
+    post({ chunk: text });
   }
 
   else {

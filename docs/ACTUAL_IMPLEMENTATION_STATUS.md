@@ -10,14 +10,14 @@
 
 | Capability | Baseline status | Evidence/gap | Phase |
 | --- | --- | --- | --- |
-| Manifest V3 build | Verified | Clean build and manifest-reference validation pass | 01/04 gate |
+| Manifest V3 build | Verified | Deterministic build, manifest references, and self-contained content script pass | 01/04 gate |
 | Side-panel React UI | Verified | Declared entry builds | Regression each phase |
-| Settings persistence | Implemented, unverified | Completion/race/error behavior incomplete | 01 |
+| Settings persistence | Verified | Awaited serialized Chrome/IndexedDB/localStorage writes; focused success/failure/corruption/legacy tests pass | 01 complete |
 | Saved provider configs | Implemented, unverified | Duplicate truth sources remain | 01/02 |
-| Chat history/sessions | Partial | UI persists sessions; background uses global history | 01 |
-| New/Clear/Load/Delete chat | Partial | Background synchronization incomplete | 01 |
-| Stop Generation | Partial | UI disconnect does not reliably abort work | 01 |
-| DOM context | Implemented, unverified | Dynamic identifiers may collide | 01 |
+| Chat history/sessions | Verified | Background state is request-local and correlated by session/request IDs | 01 complete |
+| New/Clear/Load/Delete chat | Verified | Clear operations update durable UI state; background compatibility handler exists | 01 complete |
+| Stop Generation | Implemented, unverified | Port/fetch/stream/retry/tool waits now abort; live provider/Chrome E2E remains Phase 04 | 01/04 |
+| DOM context | Verified | Dynamic interactive identifiers are stable, positive, and collision-free in focused tests | 01 complete |
 | Navigation/Google search | Implemented, unverified | Gemini-only; safety/outcome checks incomplete | 02/03 |
 | Click/type/Enter | Implemented, unverified | Ambiguity/confirmation protections absent | 01-03 |
 | Gemini streaming/tools | Implemented, unverified | Retries/screenshots/tool loop exist | 02 |
@@ -43,11 +43,11 @@
 | Email grouper | Prompt-only/demo | Prompt flag only | 03 |
 | Risky-action confirmation | Missing | Security principle not implemented | 03 |
 | Prompt-injection protection | Missing | No enforceable trust layer | 03 |
-| Unit/integration/E2E tests | Missing | Root scripts are ad hoc diagnostics | 01-04 |
-| Real lint/type check | Missing | Lint script prints a message | 01 |
+| Unit/integration/E2E tests | Partial | 19 focused Node regression tests pass; provider and Chrome E2E suites remain | 01-04 |
+| Real lint/type check | Verified | ESLint 10 gate passes source, scripts, server, and build configs | 01 complete |
 | Optimized extension artifact | Partial | Builds; composition/bundle need work | 04 |
 | Formal release | Missing | No tag/release | 04 |
 
 After every phase, affected rows must record new evidence, tests, limitations, and commit references. UI presence, compilation, or one successful API response is insufficient for **Verified**.
 
-Current completion count: **0 of 4 phases**.
+Current completion count: **1 of 4 phases**. Phase 02 is the next approval-gated continuation point.

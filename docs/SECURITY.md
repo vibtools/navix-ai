@@ -19,3 +19,13 @@ Users should always know:
 - What action AI will perform
 - What data is shared
 - Which AI provider is active
+
+## Phase 01 controls
+
+- Background conversation history is request-local, preventing the former cross-session global-state leak.
+- Request and session correlation IDs are carried through the stream protocol.
+- Cancellation stops dead-port writes and propagates to provider I/O, retry delays, and tool waits.
+- Storage failures use safe stable messages; existing database/key identifiers remain compatible.
+- Build checks assert that version, permissions, workflow lock, and content-script packaging remain unchanged.
+
+These controls do not complete security hardening. Risky-action confirmation, prompt-injection isolation, secret lifecycle/redaction, consent, and least-privilege permissions remain locked to Phase 03.

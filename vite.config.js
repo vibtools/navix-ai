@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'node:path';
 
+const projectRoot = import.meta.dirname;
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
@@ -10,9 +12,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        sidepanel: resolve(__dirname, 'index.html'),
-        background: resolve(__dirname, 'src/background/serviceWorker.js'),
-        content: resolve(__dirname, 'src/content/contentScript.js')
+        sidepanel: resolve(projectRoot, 'index.html'),
+        background: resolve(projectRoot, 'src/background/serviceWorker.js')
       },
       output: {
         entryFileNames: 'src/[name].js',

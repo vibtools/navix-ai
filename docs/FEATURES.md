@@ -2,6 +2,8 @@
 
 > This file states product goals, not completion evidence. Use [Actual Implementation Status](ACTUAL_IMPLEMENTATION_STATUS.md) for verified working, partial, prompt-only/demo, and missing capabilities. Production work is controlled by the [four-phase roadmap](PRODUCTION_ROADMAP.md).
 
+Phase 01 changed internal reliability only: existing UI/UX and visible feature scope remain unchanged. Session isolation, storage durability, cancellation, DOM identity, and deterministic quality gates are now implemented; provider parity and security controls remain in later phases.
+
 ## Version 1 Goals
 
 ### AI Sidebar Chat

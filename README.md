@@ -8,7 +8,7 @@
 
 ## Production Hardening Status
 
-The verified `v1.0.0.1.2` baseline is currently entering an approval-gated, four-phase production-hardening program. The project is buildable, but production readiness has not yet been declared. Extension build/ZIP artifact generation is paused until the Phase 04 release gate.
+The verified `v1.0.0.1.2` baseline is in an approval-gated, four-phase production-hardening program. Phase 01 is complete with deterministic dependencies, request-local session history, reliable cancellation, durable storage handling, stable DOM identities, and automated quality gates. Production readiness has not yet been declared. Extension build/ZIP artifact generation remains paused until the Phase 04 release gate.
 
 Current feature truth, open findings, phase progress, and approval rules are maintained in the [documentation index](docs/DOCUMENTATION_INDEX.md).
 

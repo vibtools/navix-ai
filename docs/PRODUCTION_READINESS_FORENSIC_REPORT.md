@@ -2,7 +2,7 @@
 
 ## Executive verdict
 
-Navix AI is a buildable Manifest V3 prototype with a substantial side-panel UI, Gemini-centered browser-agent behavior, multiple provider connectors, local persistence, and document/image context features. It is not production-ready because state integrity, provider parity, browser-action safety, deterministic builds, automated quality gates, and release controls are incomplete.
+Navix AI is a buildable Manifest V3 prototype with a substantial side-panel UI, Gemini-centered browser-agent behavior, multiple provider connectors, local persistence, and document/image context features. Phase 01 closed the verified core state, deterministic dependency, storage, cancellation, DOM identity, and minimum quality-gate root causes. It is not production-ready because provider parity, browser-action safety, capability truth, full E2E/performance evidence, and release controls remain incomplete.
 
 This report uses the official frozen baseline. Findings do not authorize implementation outside an approved phase.
 
@@ -22,18 +22,19 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 - Manifest entries/assets exist; common provider/private-key secret patterns were not found.
 - Gemini streaming and a bounded browser-action loop are implemented.
 - Page context, navigation/search, click/type/Enter, screenshots, attachments, PDF extraction, OCR, and copy/history controls have implementation code.
+- Phase 01 now has exact dependency pins/lockfile, ESLint, 19 focused tests, self-contained content-script validation, and request-local session state.
 
 ## Findings register
 
 | ID | Severity | Finding | Evidence/impact | Phase |
 | --- | --- | --- | --- | --- |
-| F-001 | High | UI/background history divergence | Background owns one global history instead of authoritative session state | 01 |
-| F-002 | High | Clear/New Chat propagation missing | UI emits `CLEAR_HISTORY`; background has no handler | 01 |
-| F-003 | High | Dynamic DOM ID collisions | ID allocation restarts while existing IDs remain | 01 |
-| F-004 | Medium | Cancellation is incomplete | Port disconnect does not reliably abort provider I/O/tool work | 01 |
-| F-005 | Medium | Storage completion is ambiguous | Local writes are not consistently awaited/verified | 01 |
-| F-006 | High | Build is non-deterministic | No lockfile, `latest` dependencies, and `npm install` in CI | 01 |
-| F-007 | High | Quality gates are absent | No real test/lint/type/E2E gate; CI checks build/manifest only | 01/04 |
+| F-001 | High | UI/background history divergence | Closed in Phase 01: provider history is reconstructed per request/session; no global history owner | 01 |
+| F-002 | High | Clear/New Chat propagation missing | Closed in Phase 01: durable clear/new/load/delete state plus stateless background acknowledgement | 01 |
+| F-003 | High | Dynamic DOM ID collisions | Closed in Phase 01: unique stable positive IDs with duplicate/dynamic regression tests | 01 |
+| F-004 | Medium | Cancellation is incomplete | Phase 01 root cause closed: abort reaches I/O, streams, retries, ports, web fallback, and tool waits; live E2E remains F-007 | 01/04 |
+| F-005 | Medium | Storage completion is ambiguous | Closed in Phase 01: serialized awaited writes and stable failures with legacy compatibility | 01 |
+| F-006 | High | Build is non-deterministic | Closed in Phase 01: exact direct pins, lockfile, and future workflow `npm ci` | 01 |
+| F-007 | High | Quality gates are absent | Phase 01 gate closed: lint, 19 tests, build-structure validation; full provider/Chrome E2E remains Phase 04 | 01/04 |
 | F-008 | High | Provider logic is duplicated | Background/server implementations diverge | 02 |
 | F-009 | High | OpenAI SSE parser is fragile | Per-chunk parsing can drop fragmented events silently | 02 |
 | F-010 | High | Browser tools are Gemini-only | Other providers have no normalized tool loop | 02 |

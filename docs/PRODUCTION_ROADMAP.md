@@ -6,8 +6,8 @@ Move the frozen Navix AI baseline to production readiness in exactly four contro
 
 | Phase | Name | Outcome | Status |
 | --- | --- | --- | --- |
-| 01 | Deterministic Core and State Integrity | Stable build, sessions, storage, cancellation, selectors, and minimum quality gates | Pending approval |
-| 02 | Unified Providers and Agent Reliability | One provider contract, reliable streaming/errors, and capability-correct agent execution | Pending |
+| 01 | Deterministic Core and State Integrity | Stable build, sessions, storage, cancellation, selectors, and minimum quality gates | Completed — 2026-09-04 UTC |
+| 02 | Unified Providers and Agent Reliability | One provider contract, reliable streaming/errors, and capability-correct agent execution | Pending approval |
 | 03 | Security and Real Capability Completion | Safe actions, privacy/secret controls, prompt-injection defenses, and truthful features | Pending |
 | 04 | Performance, Full QA, and Release | Optimized package, full regression evidence, restored build workflow, versioned release | Pending |
 
@@ -32,6 +32,10 @@ No redesign, feature/provider removal, permission expansion, version bump, relea
 ### Exit criteria
 
 Deterministic clean build passes; histories cannot leak; baseline data remains readable; DOM IDs do not collide; cancellation is consistent; new regression gates pass; required docs are synchronized.
+
+### Completion evidence
+
+Phase 01 closed F-001 through F-006 and the Phase 01 portion of F-007. ESLint passed, 19 focused tests passed, the production build and self-contained content-script check passed, the installed lockfile audit reported zero known vulnerabilities, and the local production server returned HTTP 200. Chrome extension E2E and bundle optimization remain explicitly assigned to Phase 04.
 
 ## Phase 02 — Unified Providers and Agent Reliability
 

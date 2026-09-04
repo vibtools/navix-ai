@@ -8,27 +8,30 @@ This matrix separates existing handlers from required production behavior. “Pr
 
 | Area | Current handling | Gap |
 | --- | --- | --- |
-| Missing credentials | Provider paths return missing key/token/URL errors | Messages/codes are inconsistent |
+| Missing credentials | Provider paths return missing key/token/URL errors | Provider-specific code normalization remains Phase 02 |
 | Gemini rate/server errors | Retries 429/500/503 with backoff and partial `Retry-After` support | No unified budget/telemetry |
 | Provider HTTP failures | Some HTTP bodies become messages | Shapes/redaction are not centralized |
-| Background failures | Port listener posts error/done | Lifecycle can complete inconsistently |
+| Background failures | Stable safe error payload; one terminal lifecycle per live request | Provider code taxonomy remains Phase 02 |
 | Protected/missing tab | Context error is logged and chat continues | Action eligibility is not centralized |
 | Missing selector | Content script returns `Element not found` | No stale/duplicate/ambiguous recovery |
 | Click/type errors | Exceptions are caught; typed value is checked | Navigation/state outcome checking is limited |
 | PDF/OCR failures | Per-file extraction errors are surfaced | Size/time/memory policies are incomplete |
 | Connection tests | Settings shows success/failure | Provider diagnostics remain shallow |
 | Gemini action loop | Stops after 15 iterations | No action-risk/cost budget |
+| Storage failures | Awaited serialized writes return stable read/write errors; configuration save refuses false success | User-facing recovery UI and secret policy remain Phase 03 |
+| Request cancellation | Port/web abort propagates through streams, fetches, retry waits, and tool waits | Live provider/Chrome E2E remains Phase 04 |
+| Clear/history protocol | Background is stateless and acknowledges `CLEAR_HISTORY`; provider history is request-local | Cross-device sync is not implemented |
 
 ## Required production handlers
 
 | Error family | Required behavior | Phase |
 | --- | --- | --- |
-| `STATE_SESSION_MISMATCH` | Reject/reconcile mismatched sessions without history leakage | 01 |
-| `STORAGE_UNAVAILABLE` | Keep UI usable and avoid false save success | 01 |
-| `STORAGE_QUOTA_EXCEEDED` | Preserve last valid state and avoid partial writes | 01 |
-| `STORAGE_DATA_INVALID` | Validate/migrate and quarantine bad records without deleting compatible data | 01 |
-| `REQUEST_CANCELLED` | Abort stream/network/tool work and finalize state once | 01 |
-| `PORT_DISCONNECTED` | Stop dead-port posts and preserve recoverable state | 01 |
+| `STATE_SESSION_MISMATCH` | Request/session correlation and request-local history prevent cross-session history ownership | 01 implemented; broader reconciliation Phase 02 |
+| `STORAGE_UNAVAILABLE` | Keep UI usable and reject false configuration-save success | 01 implemented |
+| `STORAGE_QUOTA_EXCEEDED` | Return stable storage failure without claiming success | 01 implemented |
+| `STORAGE_DATA_INVALID` | Return safe empty read and retain compatible database/prefix | 01 implemented |
+| `REQUEST_CANCELLED` | Abort stream/network/tool/retry work without duplicate terminal messages | 01 implemented |
+| `PORT_DISCONNECTED` | Stop dead-port posts and abort active work | 01 implemented |
 | `DOM_TARGET_STALE` | Refresh and re-resolve within a bounded retry | 01/02 |
 | `DOM_TARGET_AMBIGUOUS` | Refuse ambiguity and request clarification/confirmation | 01/03 |
 | `PROVIDER_UNAVAILABLE` | Normalize network/CORS/private-network failures with guidance | 02 |

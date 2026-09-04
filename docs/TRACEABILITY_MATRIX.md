@@ -2,12 +2,12 @@
 
 | Finding | Deliverable | Phase | Primary verification | Status |
 | --- | --- | --- | --- | --- |
-| F-001/F-002 | Session-aware history and clear/load protocol | 01 | Multi-session/tab regressions | Open |
-| F-003 | Collision-free dynamic identity | 01 | Dynamic DOM mutation/action tests | Open |
-| F-004 | Provider-aware cancellation/port lifecycle | 01 | Cancel before/mid stream/action | Open |
-| F-005 | Awaited validated storage contract | 01 | Success/failure/quota/corruption/migration | Open |
-| F-006 | Lockfile/deterministic install | 01 | Repeated clean install/build | Open |
-| F-007 | Real quality gates | 01/04 | Lint/unit/build, then full E2E | Open |
+| F-001/F-002 | Session-aware history and clear/load protocol | 01 | Request-local history/static regression and protocol tests | Closed — Phase 01 |
+| F-003 | Collision-free dynamic identity | 01 | Dynamic duplicate/new/repeated-scan tests | Closed — Phase 01 |
+| F-004 | Provider-aware cancellation/port lifecycle | 01 | Lifecycle/delay tests plus signal wiring; live E2E retained in F-007 | Closed — Phase 01 root cause |
+| F-005 | Awaited validated storage contract | 01 | Chrome success/failure, corrupt fallback, legacy prefix, listener tests | Closed — Phase 01 |
+| F-006 | Lockfile/deterministic install | 01 | Exact pins, lockfile, `npm ci`, clean build | Closed — Phase 01 |
+| F-007 | Real quality gates | 01/04 | ESLint + 19 tests + build verification pass; full Chrome/provider E2E pending | Phase 01 gate closed; Phase 04 open |
 | F-008 | Shared provider adapters | 02 | Extension/server contract tests | Open |
 | F-009 | Buffered streaming | 02 | Fragmented/malformed SSE tests | Open |
 | F-010 | Capability-aware tool execution | 02 | Per-provider capability/tool tests | Open |
@@ -20,7 +20,7 @@
 | F-018 | Real or truthfully disabled capabilities | 03 | Capability functional/failure tests | Open |
 | F-019 | Optimized artifact | 04 | Bundle/memory/startup/package budgets | Open |
 | F-020 | Versioned release | 04 | Checklist/digest/tag/release evidence | Open |
-| F-021 | Accurate documentation | 01-04 | Documentation review each phase | Open |
+| F-021 | Accurate documentation | 01-04 | Documentation review each phase | Phase 01 synchronized; ongoing |
 | F-022 | Repository hygiene | 04 | Tracked-file/license/dead-code audit | Open |
 
 ## Required synchronization

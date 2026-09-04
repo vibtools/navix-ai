@@ -1,3 +1,5 @@
+import { ensureUniqueInteractiveIds } from './domIdentity.js';
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   try {
     // Robust selector function that handles data-ai-id, CSS selectors, and fuzzy attribute/text matching
@@ -65,13 +67,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     if (request.action === "get_page_context" || request.action === "read_page") {
       // Assign unique IDs to interactive elements in the live DOM for reliable AI targeting
-      let aiIndex = 1;
-      const interactives = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])');
-      interactives.forEach(el => {
-        if (!el.hasAttribute('data-ai-id')) {
-          el.setAttribute('data-ai-id', aiIndex++);
-        }
-      });
+      ensureUniqueInteractiveIds(document);
 
       // Extract visible text and structure
       const clone = document.body.cloneNode(true);
