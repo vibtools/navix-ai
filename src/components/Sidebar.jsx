@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, Check, Zap, Server, Box } from 'lucide-react';
+import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, Check, Zap, Server, Box, Loader2, Pencil } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 function SearchableSelect({ value, onChange, options, placeholder }) {
@@ -195,6 +195,18 @@ export default function Sidebar() {
   const [saveStatus, setSaveStatus] = useState('idle');
   
   const [settingsTab, setSettingsTab] = useState('gemini');
+  const [actionLoading, setActionLoading] = useState({ provider: null, action: null });
+
+  const handleProviderAction = async (provider, actionType, actionFn) => {
+    setActionLoading({ provider, action: actionType });
+    try {
+      await actionFn();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setActionLoading({ provider: null, action: null });
+    }
+  };
   
   const [geminiModelList, setGeminiModelList] = useState([
     'gemini-2.5-flash',
@@ -321,14 +333,16 @@ export default function Sidebar() {
     }, 1500);
   };
 
-  async function handleTestConnection() {
+  async function handleTestConnection(provider = settingsTab) {
+    if (provider !== settingsTab) setSettingsTab(provider);
     setTestStatus('loading');
     setTestMessage('Testing connection...');
     try {
-      if (settingsTab === 'gemini') {
-        if (!geminiApiKey) throw new Error("API Key required");
-        const modelToTest = geminiModel || 'gemini-2.5-flash';
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToTest}:generateContent?key=${geminiApiKey}`, {
+      if (provider === 'gemini') {
+        const key = geminiApiKey || savedSettings.geminiApiKey;
+        const modelToTest = geminiModel || savedSettings.geminiModel || 'gemini-2.5-flash';
+        if (!key) throw new Error("API Key required");
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelToTest}:generateContent?key=${key}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contents: [{ parts: [{ text: "Hello" }] }] })
@@ -337,21 +351,24 @@ export default function Sidebar() {
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.error?.message || "Invalid API Key or Model");
         }
-      } else if (settingsTab === 'openai') {
-        if (!openAiApiKey) throw new Error("API Key required");
+      } else if (provider === 'openai') {
+        const key = openAiApiKey || savedSettings.openAiApiKey;
+        if (!key) throw new Error("API Key required");
         const res = await fetch('https://api.openai.com/v1/models', {
-          headers: { 'Authorization': `Bearer ${openAiApiKey}` }
+          headers: { 'Authorization': `Bearer ${key}` }
         });
         if (!res.ok) throw new Error("Invalid API Key");
-      } else if (settingsTab === 'huggingface') {
-        if (!hfApiKey) throw new Error("Token required");
+      } else if (provider === 'huggingface') {
+        const key = hfApiKey || savedSettings.hfApiKey;
+        if (!key) throw new Error("Token required");
         const res = await fetch('https://huggingface.co/api/whoami-v2', {
-          headers: { 'Authorization': `Bearer ${hfApiKey}` }
+          headers: { 'Authorization': `Bearer ${key}` }
         });
         if (!res.ok) throw new Error("Invalid Token");
-      } else if (settingsTab === 'ollama') {
-        if (!ollamaUrl) throw new Error("URL required");
-        const res = await fetch(`${ollamaUrl.replace(/\/$/, '')}/api/version`);
+      } else if (provider === 'ollama') {
+        const url = ollamaUrl || savedSettings.ollamaUrl;
+        if (!url) throw new Error("URL required");
+        const res = await fetch(`${url.replace(/\/$/, '')}/api/version`);
         if (!res.ok) throw new Error("Could not connect to Ollama");
       }
       setTestStatus('success');
@@ -418,13 +435,27 @@ export default function Sidebar() {
   async function sendMessage() {
     if (!message.trim() || loading) return;
     
-    // Validation based on selected model (using truth settings)
-    if (savedSettings.selectedModel === 'gemini' && !savedSettings.geminiApiKey) { alert("Please set your Gemini API Key in settings."); setShowSettings(true); return; }
-    if (savedSettings.selectedModel === 'openai' && !savedSettings.openAiApiKey) { alert("Please set your OpenAI API Key in settings."); setShowSettings(true); return; }
-    if (savedSettings.selectedModel === 'huggingface' && !savedSettings.hfApiKey) { alert("Please set your Hugging Face API Key in settings."); setShowSettings(true); return; }
-    if (savedSettings.selectedModel === 'ollama' && !savedSettings.ollamaUrl) { alert("Please set your Ollama URL in settings."); setShowSettings(true); return; }
-
     const userMessage = message.trim();
+
+    // Validation based on selected model (using truth settings)
+    const isConfigured = () => {
+      if (!savedSettings.selectedModel) return false;
+      if (savedSettings.selectedModel === 'gemini') return !!savedSettings.geminiApiKey;
+      if (savedSettings.selectedModel === 'openai') return !!savedSettings.openAiApiKey;
+      if (savedSettings.selectedModel === 'huggingface') return !!savedSettings.hfApiKey;
+      if (savedSettings.selectedModel === 'ollama') return !!savedSettings.ollamaUrl;
+      return false;
+    };
+
+    if (!isConfigured()) {
+      setChat((items) => [
+        ...items,
+        { role: 'user', text: userMessage },
+        { role: 'assistant', text: "⚠️ **Model API not configured!**\n\nPlease select an active model and configure its API key in the **Settings** before chatting." }
+      ]);
+      setMessage('');
+      return;
+    }
 
     setChat((items) => [
       ...items,
@@ -581,7 +612,7 @@ export default function Sidebar() {
   if (showSettings) {
     return (
       <div className="fixed top-0 right-0 h-screen w-full sm:w-[380px] shadow-2xl border-l border-slate-200 z-50">
-        <aside className="h-full w-full bg-slate-50/50 flex flex-col font-sans text-slate-800 overflow-y-auto">
+        <aside id="settings-panel" className="h-full w-full bg-slate-50/50 flex flex-col font-sans text-slate-800 overflow-y-auto">
           <header className="px-4 py-3 border-b border-slate-200 bg-white flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.02)] sticky top-0 z-10">
             <div className="flex items-center gap-2">
               <Settings2 className="w-4 h-4 text-slate-600" />
@@ -788,43 +819,103 @@ export default function Sidebar() {
                   <tr className="border-b border-slate-100 text-[10px] uppercase tracking-wider text-slate-400 bg-white">
                     <th className="px-3 py-2 font-medium">Provider</th>
                     <th className="px-3 py-2 font-medium">Model ID</th>
-                    <th className="px-3 py-2 font-medium text-center">Status</th>
+                    <th className="px-3 py-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="text-[12px]">
                   {savedSettings.geminiApiKey && (
-                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                      <td className="px-3 py-2.5 font-medium text-slate-700">Gemini</td>
-                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[120px]">{savedSettings.geminiModel || 'gemini-2.5-flash'}</td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
+                      <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-blue-500" /> Gemini
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.geminiModel || 'gemini-2.5-flash'}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleProviderAction('gemini', 'activate', async () => { const isActive = savedSettings.selectedModel === 'gemini'; const newModel = isActive ? '' : 'gemini'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('gemini'); })} title={savedSettings.selectedModel === 'gemini' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'gemini' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
+                            {actionLoading.provider === 'gemini' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => setSettingsTab('gemini')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleProviderAction('gemini', 'test', async () => await handleTestConnection('gemini'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'gemini' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => handleProviderAction('gemini', 'delete', async () => await AppStorage.set({ geminiApiKey: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'gemini' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                   {savedSettings.openAiApiKey && (
-                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                      <td className="px-3 py-2.5 font-medium text-slate-700">OpenAI</td>
-                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[120px]">{savedSettings.openAiModel || 'gpt-4o'}</td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
+                      <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
+                        <Bot className="w-3.5 h-3.5 text-emerald-500" /> OpenAI
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.openAiModel || 'gpt-4o'}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleProviderAction('openai', 'activate', async () => { const isActive = savedSettings.selectedModel === 'openai'; const newModel = isActive ? '' : 'openai'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('openai'); })} title={savedSettings.selectedModel === 'openai' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'openai' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
+                            {actionLoading.provider === 'openai' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => setSettingsTab('openai')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleProviderAction('openai', 'test', async () => await handleTestConnection('openai'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'openai' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => handleProviderAction('openai', 'delete', async () => await AppStorage.set({ openAiApiKey: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'openai' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                   {savedSettings.hfApiKey && (
-                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                      <td className="px-3 py-2.5 font-medium text-slate-700">HuggingFace</td>
-                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[120px]">{savedSettings.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407'}</td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
+                      <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
+                        <Box className="w-3.5 h-3.5 text-amber-500" /> HuggingFace
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407'}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleProviderAction('huggingface', 'activate', async () => { const isActive = savedSettings.selectedModel === 'huggingface'; const newModel = isActive ? '' : 'huggingface'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('huggingface'); })} title={savedSettings.selectedModel === 'huggingface' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'huggingface' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
+                            {actionLoading.provider === 'huggingface' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => setSettingsTab('huggingface')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleProviderAction('huggingface', 'test', async () => await handleTestConnection('huggingface'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'huggingface' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => handleProviderAction('huggingface', 'delete', async () => await AppStorage.set({ hfApiKey: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'huggingface' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
                   {savedSettings.ollamaUrl && (
-                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50">
-                      <td className="px-3 py-2.5 font-medium text-slate-700">Ollama</td>
-                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[120px]">{savedSettings.ollamaModel || 'llama3'}</td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                    <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
+                      <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
+                        <Server className="w-3.5 h-3.5 text-slate-500" /> Ollama
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.ollamaModel || 'llama3'}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleProviderAction('ollama', 'activate', async () => { const isActive = savedSettings.selectedModel === 'ollama'; const newModel = isActive ? '' : 'ollama'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('ollama'); })} title={savedSettings.selectedModel === 'ollama' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'ollama' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
+                            {actionLoading.provider === 'ollama' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => setSettingsTab('ollama')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleProviderAction('ollama', 'test', async () => await handleTestConnection('ollama'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'ollama' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => handleProviderAction('ollama', 'delete', async () => await AppStorage.set({ ollamaUrl: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
+                            {actionLoading.provider === 'ollama' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -883,7 +974,8 @@ export default function Sidebar() {
                 {savedSettings.selectedModel === 'gemini' ? savedSettings.geminiModel :
                  savedSettings.selectedModel === 'openai' ? savedSettings.openAiModel :
                  savedSettings.selectedModel === 'huggingface' ? savedSettings.hfModel :
-                 savedSettings.ollamaModel}
+                 savedSettings.selectedModel === 'ollama' ? savedSettings.ollamaModel :
+                 'No Model Active'}
               </span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
@@ -1072,9 +1164,9 @@ export default function Sidebar() {
             {/* Message Bubble */}
             <div className="max-w-[88%] flex flex-col gap-1.5">
               {item.status && (
-                <div className={`flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border border-blue-100 bg-blue-50/50 text-blue-600 ${item.role === 'user' ? 'self-end' : 'self-start'}`}>
-                  <Sparkles className="w-3 h-3 animate-pulse" />
-                  {item.status}
+                <div className={`flex items-center gap-1.5 text-[11px] font-medium px-2 py-1 rounded border border-slate-100 bg-slate-50 text-slate-500 ${item.role === 'user' ? 'self-end' : 'self-start'}`}>
+                  <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                  <span className="truncate max-w-[200px]">{item.status}</span>
                 </div>
               )}
               
@@ -1102,10 +1194,10 @@ export default function Sidebar() {
             <div className="flex-shrink-0 w-6 h-6 rounded-full bg-transparent overflow-hidden flex items-center justify-center mt-1">
               <img src="/logo/branding/AI-Browser-Copilot-dark-Icon.png" className="w-full h-full object-cover rounded-full" alt="AI" />
             </div>
-            <div className="bg-slate-50 border border-slate-100 px-3.5 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5 shadow-sm">
-              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-2xl rounded-tl-sm flex items-center gap-1 shadow-sm">
+              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}

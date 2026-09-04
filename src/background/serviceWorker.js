@@ -88,15 +88,32 @@ async function executeTool(name, args) {
         return;
       }
 
-      if (name === "navigate") {
-        chrome.tabs.update(activeTab.id, { url: args.url }, () => {
-          resolve({ success: true, message: `Navigating to ${args.url}` });
+      function updateTabAndWait(tabId, updateProps, actionMsg) {
+        chrome.tabs.update(tabId, updateProps, (tab) => {
+          if (chrome.runtime.lastError || !tab) {
+            resolve({ error: "Failed to load page" });
+            return;
+          }
+          const listener = (updatedTabId, changeInfo) => {
+            if (updatedTabId === tabId && changeInfo.status === 'complete') {
+              chrome.tabs.onUpdated.removeListener(listener);
+              clearTimeout(fallback);
+              setTimeout(() => resolve({ success: true, message: `${actionMsg} successful` }), 1500); // Give content script time to inject
+            }
+          };
+          chrome.tabs.onUpdated.addListener(listener);
+          const fallback = setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(listener);
+            resolve({ success: true, message: `${actionMsg} timeout, but likely loaded` });
+          }, 10000);
         });
+      }
+
+      if (name === "navigate") {
+        updateTabAndWait(activeTab.id, { url: args.url }, `Navigated to ${args.url}`);
       } else if (name === "google_search") {
         const url = `https://www.google.com/search?q=${encodeURIComponent(args.query)}`;
-        chrome.tabs.update(activeTab.id, { url }, () => {
-          resolve({ success: true, message: `Searching Google for ${args.query}` });
-        });
+        updateTabAndWait(activeTab.id, { url }, `Searched Google for ${args.query}`);
       } else {
         // Send to content script for DOM manipulation (read, click, type)
         chrome.tabs.sendMessage(activeTab.id, { action: name, args }, (response) => {
@@ -251,8 +268,11 @@ async function handleAIRequestStream(request, port) {
 
     let isDone = false;
     let finalAiText = "";
+    let iterations = 0;
+    const MAX_ITERATIONS = 15;
     
-    while(!isDone && !isAborted) {
+    while(!isDone && !isAborted && iterations < MAX_ITERATIONS) {
+      iterations++;
       const abortController = new AbortController();
       if (isAborted) break;
 
@@ -313,6 +333,14 @@ async function handleAIRequestStream(request, port) {
       }
     }
     
+    if (iterations >= MAX_ITERATIONS) {
+      finalAiText += "\n\n*[Stopped automatically after reaching maximum action steps to prevent infinite loop. Please provide more specific instructions if needed.]*";
+      chatHistory.push({ role: "model", parts: [{ text: finalAiText }] });
+      port.postMessage({ chunk: "\n\n*[Stopped automatically to prevent infinite loops]*" });
+      port.postMessage({ done: true });
+      return;
+    }
+
     if (isAborted) {
         if (!finalAiText) finalAiText = "Generation stopped by user.";
         else finalAiText += "\n\n*[Stopped]*";

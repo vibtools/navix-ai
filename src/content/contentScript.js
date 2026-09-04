@@ -140,11 +140,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // slight delay to allow scroll
         setTimeout(() => {
-          el.click();
-          sendResponse({ success: true, message: `Clicked element ${selector}` });
+          try {
+            el.click();
+            sendResponse({ success: true, message: `Clicked element ${request.args.selector}` });
+          } catch(e) {
+            sendResponse({ error: `Error clicking element ${request.args.selector}: ${e.message}` });
+          }
         }, 300);
       } else {
-        sendResponse({ error: `Element not found: ${selector}` });
+        sendResponse({ error: `Element not found: ${request.args.selector}` });
       }
     } 
     else if (request.action === "type_text") {
