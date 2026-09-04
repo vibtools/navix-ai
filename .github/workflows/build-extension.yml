@@ -1,13 +1,13 @@
-name: Build Chrome Extension
+name: Build Chrome Extension (Paused Until Phase 04)
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
   build-extension:
+    # Production-hardening governance lock: do not build or publish an
+    # extension artifact before Phase 04 release gates are approved.
+    if: ${{ false }}
     runs-on: ubuntu-latest
 
     steps:

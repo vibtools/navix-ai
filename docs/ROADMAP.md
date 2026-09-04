@@ -1,5 +1,7 @@
 # Roadmap
 
+> The canonical production-hardening roadmap is [Production Roadmap](PRODUCTION_ROADMAP.md). It contains exactly four approval-gated phases. The capability roadmap below is retained as historical product direction and must not be interpreted as implementation or completion status.
+
 ## Phase 1: Foundation
 
 - Project structure

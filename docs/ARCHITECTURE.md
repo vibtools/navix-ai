@@ -1,5 +1,7 @@
 # Architecture
 
+> Baseline note: this describes the high-level product design. Verified implementation status and production gaps are tracked in [Actual Implementation Status](ACTUAL_IMPLEMENTATION_STATUS.md) and [Production Readiness Forensic Report](PRODUCTION_READINESS_FORENSIC_REPORT.md).
+
 ## Overview
 
 Navix AI is designed as a Chrome Extension based AI browser assistant.

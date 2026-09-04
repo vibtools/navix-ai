@@ -6,6 +6,12 @@
 
 ---
 
+## Production Hardening Status
+
+The verified `v1.0.0.1.2` baseline is currently entering an approval-gated, four-phase production-hardening program. The project is buildable, but production readiness has not yet been declared. Extension build/ZIP artifact generation is paused until the Phase 04 release gate.
+
+Current feature truth, open findings, phase progress, and approval rules are maintained in the [documentation index](docs/DOCUMENTATION_INDEX.md).
+
 ## 🎯 Our Mission
 
 The core mission of this project is to build a **powerful, autonomous AI Browser Extension** that acts as your personal web agent. Through a simple, sleek sidebar chatbox, you can command the AI to browse, interact, and execute complex tasks on your behalf. 
@@ -56,3 +62,15 @@ Browser Extension (UI & Sidebar)
 
 ## 🛠️ Development Phase
 Currently in active development: Integrating context-aware chat, local storage persistence, and core LLM prompt chaining for autonomous browsing.
+
+## 📚 Production Documentation
+
+- [Official Baseline Freeze](docs/OFFICIAL_BASELINE_FREEZE.md)
+- [Production Readiness Forensic Report](docs/PRODUCTION_READINESS_FORENSIC_REPORT.md)
+- [Four-Phase Production Roadmap](docs/PRODUCTION_ROADMAP.md)
+- [Phase Completion Log](docs/PHASE_COMPLETION_LOG.md)
+- [Actual Implementation Status](docs/ACTUAL_IMPLEMENTATION_STATUS.md)
+- [Error Handling Matrix](docs/ERROR_HANDLING_MATRIX.md)
+- [Production Traceability Matrix](docs/TRACEABILITY_MATRIX.md)
+- [Development Governance and Approval Gates](docs/DEVELOPMENT_GOVERNANCE.md)
+- [Changelog](CHANGELOG.md)

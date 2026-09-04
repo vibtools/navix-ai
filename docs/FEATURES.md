@@ -1,5 +1,7 @@
 # Features Specification
 
+> This file states product goals, not completion evidence. Use [Actual Implementation Status](ACTUAL_IMPLEMENTATION_STATUS.md) for verified working, partial, prompt-only/demo, and missing capabilities. Production work is controlled by the [four-phase roadmap](PRODUCTION_ROADMAP.md).
+
 ## Version 1 Goals
 
 ### AI Sidebar Chat
