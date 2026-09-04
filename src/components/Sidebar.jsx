@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, Check, Zap, Server, Box, Loader2, Pencil, Save, Download, Puzzle, MessageSquare, Search, MoreVertical, FileText, Image as ImageIcon } from 'lucide-react';
+import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, ChevronUp, Check, Zap, Server, Box, Loader2, Pencil, Save, Download, Puzzle, MessageSquare, Search, MoreVertical, FileText, Image as ImageIcon, SlidersHorizontal, Globe, Languages, SquarePen, LayoutGrid, Code2, Info } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -190,7 +190,9 @@ export default function Sidebar() {
     systemPrompt: 'You are a helpful and intelligent AI assistant. Provide clear, accurate, and concise responses.', 
     customInstruction: 'Always format your responses using Markdown. Use code blocks for code snippets and lists for structured information.',
     defaultModel: 'gemini', autoModelSwitch: false,
-    dataAnalysis: false, searchEnabled: false, searchEngine: 'google'
+    dataAnalysis: false, searchEnabled: false, searchEngine: 'google',
+    artifactsEnabled: false, imageGenEnabled: false, imageGenModel: 'Nano Banana',
+    customInstructionsEnabled: true, responseLanguage: 'Auto'
   });
   
   // API Keys & Config (Draft state for inputs)
@@ -220,6 +222,18 @@ export default function Sidebar() {
   const [pluginAddressGenerator, setPluginAddressGenerator] = useState(false);
   const [pluginCsvGenerator, setPluginCsvGenerator] = useState(false);
   const [pluginEmailGrouper, setPluginEmailGrouper] = useState(false);
+  
+  // Chat Controls & Capabilities State
+  const [showChatControls, setShowChatControls] = useState(false);
+  const [artifactsEnabled, setArtifactsEnabled] = useState(false);
+  const [imageGenEnabled, setImageGenEnabled] = useState(false);
+  const [imageGenModel, setImageGenModel] = useState('Nano Banana');
+  const [showImageModelPicker, setShowImageModelPicker] = useState(false);
+  const [customInstructionsEnabled, setCustomInstructionsEnabled] = useState(true);
+  const [showCustomInstructionModal, setShowCustomInstructionModal] = useState(false);
+  const [tempCustomInstruction, setTempCustomInstruction] = useState('');
+  const [responseLanguage, setResponseLanguage] = useState('Auto');
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   
   const [testStatus, setTestStatus] = useState('idle');
   const [testMessage, setTestMessage] = useState('');
@@ -279,7 +293,8 @@ export default function Sidebar() {
       'systemPrompt', 'customInstruction',
       'defaultModel', 'autoModelSwitch',
       'dataAnalysis', 'searchEnabled', 'searchEngine',
-      'pluginNameGenerator', 'pluginAddressGenerator', 'pluginCsvGenerator', 'pluginEmailGrouper'
+      'pluginNameGenerator', 'pluginAddressGenerator', 'pluginCsvGenerator', 'pluginEmailGrouper',
+      'artifactsEnabled', 'imageGenEnabled', 'imageGenModel', 'customInstructionsEnabled', 'responseLanguage'
     ]).then(result => {
       if (result.geminiApiKey) setGeminiApiKey(result.geminiApiKey);
       if (result.geminiModel) setGeminiModel(result.geminiModel);
@@ -338,6 +353,12 @@ export default function Sidebar() {
       if (result.pluginCsvGenerator !== undefined) setPluginCsvGenerator(result.pluginCsvGenerator);
       if (result.pluginEmailGrouper !== undefined) setPluginEmailGrouper(result.pluginEmailGrouper);
       
+      if (result.artifactsEnabled !== undefined) setArtifactsEnabled(result.artifactsEnabled);
+      if (result.imageGenEnabled !== undefined) setImageGenEnabled(result.imageGenEnabled);
+      if (result.imageGenModel !== undefined) setImageGenModel(result.imageGenModel);
+      if (result.customInstructionsEnabled !== undefined) setCustomInstructionsEnabled(result.customInstructionsEnabled);
+      if (result.responseLanguage !== undefined) setResponseLanguage(result.responseLanguage);
+      
       // Init SavedSettings truth
       setSavedSettings({
         geminiApiKey: result.geminiApiKey || '',
@@ -359,7 +380,12 @@ export default function Sidebar() {
         pluginNameGenerator: result.pluginNameGenerator || false,
         pluginAddressGenerator: result.pluginAddressGenerator || false,
         pluginCsvGenerator: result.pluginCsvGenerator || false,
-        pluginEmailGrouper: result.pluginEmailGrouper || false
+        pluginEmailGrouper: result.pluginEmailGrouper || false,
+        artifactsEnabled: result.artifactsEnabled || false,
+        imageGenEnabled: result.imageGenEnabled || false,
+        imageGenModel: result.imageGenModel || 'Nano Banana',
+        customInstructionsEnabled: result.customInstructionsEnabled !== undefined ? result.customInstructionsEnabled : true,
+        responseLanguage: result.responseLanguage || 'Auto'
       });
 
       if (result.chatHistory) setChat(result.chatHistory);
@@ -391,6 +417,12 @@ export default function Sidebar() {
       if (changes.pluginAddressGenerator !== undefined) setPluginAddressGenerator(changes.pluginAddressGenerator);
       if (changes.pluginCsvGenerator !== undefined) setPluginCsvGenerator(changes.pluginCsvGenerator);
       if (changes.pluginEmailGrouper !== undefined) setPluginEmailGrouper(changes.pluginEmailGrouper);
+      
+      if (changes.artifactsEnabled !== undefined) setArtifactsEnabled(changes.artifactsEnabled);
+      if (changes.imageGenEnabled !== undefined) setImageGenEnabled(changes.imageGenEnabled);
+      if (changes.imageGenModel !== undefined) setImageGenModel(changes.imageGenModel);
+      if (changes.customInstructionsEnabled !== undefined) setCustomInstructionsEnabled(changes.customInstructionsEnabled);
+      if (changes.responseLanguage !== undefined) setResponseLanguage(changes.responseLanguage);
       
       if (changes.chatSessions !== undefined) setChatSessions(changes.chatSessions);
       if (changes.currentSessionId !== undefined) setCurrentSessionId(changes.currentSessionId);
@@ -789,6 +821,21 @@ export default function Sidebar() {
     }
     if (savedSettings.pluginEmailGrouper) {
       pluginContext += "\n[PLUGIN: Email Grouper Active] You have capabilities to automatically group and process emails efficiently.";
+    }
+    if (artifactsEnabled) {
+      pluginContext += "\n[CAPABILITY: Artifacts Active] When writing significant code, documents, or UI layouts, output them in clean standalone artifact blocks.";
+    }
+    if (imageGenEnabled) {
+      pluginContext += `\n[CAPABILITY: Image Generation Active: ${imageGenModel}] You can create and describe images using the ${imageGenModel} model.`;
+    }
+    if (dataAnalysis) {
+      pluginContext += "\n[CAPABILITY: Data Analysis Active] Analytical, computational, and structured dataset queries are prioritized.";
+    }
+    if (customInstructionsEnabled && customInstruction) {
+      pluginContext += `\n[CUSTOM INSTRUCTIONS]\n${customInstruction}`;
+    }
+    if (responseLanguage && responseLanguage !== 'Auto') {
+      pluginContext += `\n[RESPONSE LANGUAGE: Please respond in ${responseLanguage}]`;
     }
     
     if (pluginContext) {
@@ -1908,7 +1955,7 @@ return (
       {/* Input Area */}
       <div className="p-3 bg-white border-t border-slate-100 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.02)]">
         {/* Top Toolbar */}
-        <div className="flex items-center justify-between px-1 mb-2">
+        <div className="flex items-center justify-between px-1 mb-2 relative">
           <div className="flex items-center gap-1.5">
             <button 
               onClick={() => setIncludeScreenshot(!includeScreenshot)}
@@ -1939,9 +1986,18 @@ return (
               <BookOpen className="w-4 h-4" />
             </button>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setShowSettings(true)} className="p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-colors" title="Settings">
-              <Settings2 className="w-4 h-4" />
+          <div className="flex items-center gap-1.5 relative">
+            <button 
+              id="chat-controls-btn"
+              onClick={() => {
+                setShowChatControls(!showChatControls);
+                setShowImageModelPicker(false);
+                setShowLanguagePicker(false);
+              }} 
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${showChatControls ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`} 
+              title="Chat controls"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
             </button>
             <button onClick={() => setShowHistory(!showHistory)} className={`p-1.5 rounded-lg transition-colors ${showHistory ? 'bg-blue-100 text-blue-600' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`} title="History">
               <Clock className="w-4 h-4" />
@@ -1949,6 +2005,321 @@ return (
             <button onClick={startNewChat} className="p-1.5 bg-blue-600/10 text-blue-600 hover:bg-blue-600/20 rounded-lg transition-colors" title="New Chat">
               <Plus className="w-4 h-4" />
             </button>
+
+            {/* Chat Controls Dropdown Modal */}
+            {showChatControls && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => {
+                    setShowChatControls(false);
+                    setShowImageModelPicker(false);
+                    setShowLanguagePicker(false);
+                  }} 
+                />
+
+                <div 
+                  id="chat-controls-modal"
+                  className="absolute bottom-full right-0 mb-2.5 w-[295px] sm:w-[315px] bg-white border border-slate-200/90 rounded-2xl shadow-2xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                    <h3 className="text-[16px] font-bold text-slate-800 tracking-tight">Chat controls</h3>
+                    <button 
+                      onClick={() => {
+                        setShowChatControls(false);
+                        setShowImageModelPicker(false);
+                        setShowLanguagePicker(false);
+                      }} 
+                      className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Section: Capabilities */}
+                  <div className="space-y-2.5">
+                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      Capabilities
+                    </div>
+
+                    {/* Artifacts */}
+                    <div className="flex items-center justify-between py-0.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-5 h-5 rounded flex items-center justify-center text-teal-600">
+                          <LayoutGrid className="w-4 h-4" />
+                        </div>
+                        <span className="text-[13px] font-medium text-slate-700">Artifacts</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={artifactsEnabled} 
+                          onChange={(e) => { 
+                            setArtifactsEnabled(e.target.checked); 
+                            AppStorage.set({ artifactsEnabled: e.target.checked }); 
+                          }} 
+                        />
+                        <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Search */}
+                    <div className="flex items-center justify-between py-0.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-5 h-5 rounded flex items-center justify-center text-indigo-500">
+                          <Globe className="w-4 h-4" />
+                        </div>
+                        <span className="text-[13px] font-medium text-slate-700">Search</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={searchEnabled} 
+                          onChange={(e) => { 
+                            setSearchEnabled(e.target.checked); 
+                            AppStorage.set({ searchEnabled: e.target.checked }); 
+                          }} 
+                        />
+                        <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Image with model dropdown */}
+                    <div className="flex items-center justify-between py-0.5 relative">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="w-5 h-5 rounded flex items-center justify-center text-amber-500 shrink-0">
+                          <ImageIcon className="w-4 h-4" />
+                        </div>
+                        <span className="text-[13px] font-medium text-slate-700">Image</span>
+                        <div className="group relative flex items-center">
+                          <Info className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block w-36 bg-slate-800 text-white text-[10px] p-1.5 rounded-md shadow-lg z-50 text-center pointer-events-none">
+                            Image generation model
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowImageModelPicker(!showImageModelPicker);
+                            setShowLanguagePicker(false);
+                          }}
+                          className="flex items-center gap-1 text-[11px] text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-md transition-colors font-medium cursor-pointer"
+                        >
+                          <span className="max-w-[78px] truncate">{imageGenModel}</span>
+                          {showImageModelPicker ? (
+                            <ChevronUp className="w-3 h-3 text-slate-400 shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+                          )}
+                        </button>
+
+                        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={imageGenEnabled} 
+                            onChange={(e) => { 
+                              setImageGenEnabled(e.target.checked); 
+                              AppStorage.set({ imageGenEnabled: e.target.checked }); 
+                            }} 
+                          />
+                          <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Select Generation Model Flyout Menu (Screenshot_8) */}
+                      {showImageModelPicker && (
+                        <div 
+                          className="absolute right-0 top-full mt-1.5 w-[205px] bg-white border border-slate-200/90 rounded-xl shadow-2xl z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-700 border-b border-slate-100 bg-slate-50/70">
+                            Select Generation Model
+                          </div>
+                          <div className="py-1 max-h-[175px] overflow-y-auto no-scrollbar">
+                            {[
+                              'Nano Banana',
+                              'Nano Banana 2',
+                              'Nano Banana Pro',
+                              'GPT-image-2 (Low)',
+                              'GPT-image-2 (Medium)',
+                              'GPT-image-2 (High)'
+                            ].map(model => (
+                              <button
+                                key={model}
+                                type="button"
+                                onClick={() => {
+                                  setImageGenModel(model);
+                                  AppStorage.set({ imageGenModel: model });
+                                  setShowImageModelPicker(false);
+                                }}
+                                className={`w-full px-3 py-1.5 text-left text-[11.5px] flex items-center justify-between hover:bg-slate-50 transition-colors ${imageGenModel === model ? 'bg-blue-50/70 text-blue-600 font-medium' : 'text-slate-700'}`}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  <Sparkles className={`w-3 h-3 shrink-0 ${imageGenModel === model ? 'text-blue-500' : 'text-slate-400'}`} />
+                                  <span className="truncate">{model}</span>
+                                </div>
+                                {imageGenModel === model && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Data Analysis */}
+                    <div className="flex items-center justify-between py-0.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-5 h-5 rounded flex items-center justify-center text-blue-500">
+                          <Code2 className="w-4 h-4" />
+                        </div>
+                        <span className="text-[13px] font-medium text-slate-700">Data Analysis</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={dataAnalysis} 
+                          onChange={(e) => { 
+                            setDataAnalysis(e.target.checked); 
+                            AppStorage.set({ dataAnalysis: e.target.checked }); 
+                          }} 
+                        />
+                        <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Section: Personalization */}
+                  <div className="space-y-2.5 pt-3 border-t border-slate-100/90 mt-3">
+                    <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                      Personalization
+                    </div>
+
+                    {/* Custom Instructions */}
+                    <div className="flex items-center justify-between py-0.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-5 h-5 rounded flex items-center justify-center text-purple-500 shrink-0">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <span className="text-[13px] font-medium text-slate-700 truncate">Custom Instructions</span>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setTempCustomInstruction(customInstruction);
+                            setShowCustomInstructionModal(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                          title="Edit Custom Instructions"
+                        >
+                          <SquarePen className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only peer" 
+                          checked={customInstructionsEnabled} 
+                          onChange={(e) => { 
+                            setCustomInstructionsEnabled(e.target.checked); 
+                            AppStorage.set({ customInstructionsEnabled: e.target.checked }); 
+                          }} 
+                        />
+                        <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Response language */}
+                    <div className="flex items-center justify-between py-0.5 relative">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-5 h-5 rounded flex items-center justify-center text-indigo-500 shrink-0">
+                          <Languages className="w-4 h-4" />
+                        </div>
+                        <span className="text-[13px] font-medium text-slate-700 truncate">Response language</span>
+                      </div>
+                      
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowLanguagePicker(!showLanguagePicker);
+                          setShowImageModelPicker(false);
+                        }}
+                        className="flex items-center gap-1 text-[12px] text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200/80 px-2 py-0.5 rounded-md transition-colors font-medium cursor-pointer shrink-0"
+                      >
+                        <span>{responseLanguage}</span>
+                        {showLanguagePicker ? (
+                          <ChevronUp className="w-3 h-3 text-slate-400 shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+                        )}
+                      </button>
+
+                      {/* Language Selection Flyout */}
+                      {showLanguagePicker && (
+                        <div 
+                          className="absolute right-0 top-full mt-1.5 w-[150px] bg-white border border-slate-200/90 rounded-xl shadow-2xl z-50 py-1 overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-700 border-b border-slate-100 bg-slate-50/70">
+                            Response Language
+                          </div>
+                          <div className="py-1 max-h-[160px] overflow-y-auto no-scrollbar">
+                            {[
+                              'Auto',
+                              'English',
+                              'Bengali',
+                              'Spanish',
+                              'French',
+                              'German',
+                              'Chinese',
+                              'Japanese'
+                            ].map(lang => (
+                              <button
+                                key={lang}
+                                type="button"
+                                onClick={() => {
+                                  setResponseLanguage(lang);
+                                  AppStorage.set({ responseLanguage: lang });
+                                  setShowLanguagePicker(false);
+                                }}
+                                className={`w-full px-3 py-1.5 text-left text-[11.5px] flex items-center justify-between hover:bg-slate-50 transition-colors ${responseLanguage === lang ? 'bg-blue-50/70 text-blue-600 font-medium' : 'text-slate-700'}`}
+                              >
+                                <span>{lang}</span>
+                                {responseLanguage === lang && <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Footer Link to Settings */}
+                  <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setShowChatControls(false);
+                        setShowSettings(true);
+                      }}
+                      className="text-[11px] text-slate-500 hover:text-blue-600 flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                      <span>All settings & API keys</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -2051,6 +2422,53 @@ return (
           </div>
         </div>
       </div>
+
+      {/* Custom Instructions Edit Modal */}
+      {showCustomInstructionModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-sm p-4 space-y-3 animate-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <SquarePen className="w-4 h-4 text-purple-600" />
+                <h4 className="text-[14px] font-semibold text-slate-800">Custom Instructions</h4>
+              </div>
+              <button 
+                onClick={() => setShowCustomInstructionModal(false)} 
+                className="p-1 hover:bg-slate-100 rounded-md transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Define how you'd like the AI to behave, format responses, or enforce personality rules across all chats.
+            </p>
+            <textarea
+              value={tempCustomInstruction}
+              onChange={(e) => setTempCustomInstruction(e.target.value)}
+              className="w-full h-28 border border-slate-200 rounded-xl p-3 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+              placeholder="e.g. Always format with markdown, provide concise technical bullet points..."
+            />
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button 
+                onClick={() => setShowCustomInstructionModal(false)}
+                className="px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  setCustomInstruction(tempCustomInstruction);
+                  AppStorage.set({ customInstruction: tempCustomInstruction });
+                  setShowCustomInstructionModal(false);
+                }}
+                className="px-3.5 py-1.5 text-[12px] font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm cursor-pointer"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </aside>
     </div>
   );
