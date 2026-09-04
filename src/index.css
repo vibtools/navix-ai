@@ -61,4 +61,24 @@
     scrollbar-width: thin;
     scrollbar-color: #e2e8f0 transparent;
   }
+
+  .compact-scrollbar::-webkit-scrollbar {
+    height: 3px;
+    width: 3px;
+  }
+  .compact-scrollbar::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 9999px;
+  }
+  .compact-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  .compact-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  .compact-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f8fafc;
+  }
 }

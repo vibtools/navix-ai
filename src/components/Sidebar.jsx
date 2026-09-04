@@ -242,6 +242,8 @@ export default function Sidebar() {
   const [settingsPageTab, setSettingsPageTab] = useState('model'); // main tab
   const [settingsTab, setSettingsTab] = useState('gemini'); // model sub-tab
   const [actionLoading, setActionLoading] = useState({ provider: null, action: null });
+  const [activeConfigs, setActiveConfigs] = useState([]);
+  const [editingConfigId, setEditingConfigId] = useState(null);
 
   const handleProviderAction = async (provider, actionType, actionFn) => {
     setActionLoading({ provider, action: actionType });
@@ -288,7 +290,7 @@ export default function Sidebar() {
       'openAiApiKey', 'openAiModel',
       'hfApiKey', 'hfModel',
       'ollamaUrl', 'ollamaModel',
-      'selectedModel',
+      'selectedModel', 'activeConfigs',
       'chatHistory', 'chatSessions', 'currentSessionId',
       'systemPrompt', 'customInstruction',
       'defaultModel', 'autoModelSwitch',
@@ -296,20 +298,51 @@ export default function Sidebar() {
       'pluginNameGenerator', 'pluginAddressGenerator', 'pluginCsvGenerator', 'pluginEmailGrouper',
       'artifactsEnabled', 'imageGenEnabled', 'imageGenModel', 'customInstructionsEnabled', 'responseLanguage'
     ]).then(result => {
-      if (result.geminiApiKey) setGeminiApiKey(result.geminiApiKey);
-      if (result.geminiModel) setGeminiModel(result.geminiModel);
       if (result.cachedGeminiModels) setGeminiModelList(result.cachedGeminiModels);
-      
-      if (result.openAiApiKey) setOpenAiApiKey(result.openAiApiKey);
-      if (result.openAiModel) setOpenAiModel(result.openAiModel);
-      
-      if (result.hfApiKey) setHfApiKey(result.hfApiKey);
-      if (result.hfModel) setHfModel(result.hfModel);
-      
-      if (result.ollamaUrl) setOllamaUrl(result.ollamaUrl);
-      if (result.ollamaModel) setOllamaModel(result.ollamaModel);
-      
       if (result.selectedModel) setSelectedModel(result.selectedModel);
+
+      // Build active configurations from storage or migrate from existing keys
+      let configs = result.activeConfigs;
+      if (!Array.isArray(configs) || configs.length === 0) {
+        configs = [];
+        if (result.geminiApiKey) {
+          configs.push({
+            id: 'gemini_' + (result.geminiModel || 'gemini-2.5-flash'),
+            provider: 'gemini',
+            model: result.geminiModel || 'gemini-2.5-flash',
+            apiKey: result.geminiApiKey,
+            isActive: (result.selectedModel || 'gemini') === 'gemini'
+          });
+        }
+        if (result.openAiApiKey) {
+          configs.push({
+            id: 'openai_' + (result.openAiModel || 'gpt-4o'),
+            provider: 'openai',
+            model: result.openAiModel || 'gpt-4o',
+            apiKey: result.openAiApiKey,
+            isActive: result.selectedModel === 'openai'
+          });
+        }
+        if (result.hfApiKey) {
+          configs.push({
+            id: 'hf_' + (result.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407'),
+            provider: 'huggingface',
+            model: result.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407',
+            apiKey: result.hfApiKey,
+            isActive: result.selectedModel === 'huggingface'
+          });
+        }
+        if (result.ollamaUrl) {
+          configs.push({
+            id: 'ollama_' + (result.ollamaModel || 'llama3'),
+            provider: 'ollama',
+            model: result.ollamaModel || 'llama3',
+            url: result.ollamaUrl,
+            isActive: result.selectedModel === 'ollama'
+          });
+        }
+      }
+      setActiveConfigs(configs);
       
       if (result.chatSessions) {
         setChatSessions(result.chatSessions);
@@ -361,6 +394,7 @@ export default function Sidebar() {
       
       // Init SavedSettings truth
       setSavedSettings({
+        activeConfigs: configs,
         geminiApiKey: result.geminiApiKey || '',
         geminiModel: result.geminiModel || 'gemini-2.5-flash',
         openAiApiKey: result.openAiApiKey || '',
@@ -369,7 +403,7 @@ export default function Sidebar() {
         hfModel: result.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407',
         ollamaUrl: result.ollamaUrl || 'http://localhost:11434',
         ollamaModel: result.ollamaModel || 'llama3',
-        selectedModel: result.selectedModel || 'gemini',
+        selectedModel: result.selectedModel || (configs.find(c => c.isActive)?.provider || 'gemini'),
         systemPrompt: result.systemPrompt !== undefined ? result.systemPrompt : 'You are a helpful and intelligent AI assistant. Provide clear, accurate, and concise responses.',
         customInstruction: result.customInstruction !== undefined ? result.customInstruction : 'Always format your responses using Markdown. Use code blocks for code snippets and lists for structured information.',
         defaultModel: result.defaultModel || 'gemini',
@@ -395,15 +429,7 @@ export default function Sidebar() {
     // Listen for cross-tab or storage changes
     AppStorage.listen((changes) => {
       setSavedSettings(prev => ({ ...prev, ...changes }));
-      // Also softly update inputs if changed from outside
-      if (changes.geminiApiKey !== undefined) setGeminiApiKey(changes.geminiApiKey);
-      if (changes.geminiModel !== undefined) setGeminiModel(changes.geminiModel);
-      if (changes.openAiApiKey !== undefined) setOpenAiApiKey(changes.openAiApiKey);
-      if (changes.openAiModel !== undefined) setOpenAiModel(changes.openAiModel);
-      if (changes.hfApiKey !== undefined) setHfApiKey(changes.hfApiKey);
-      if (changes.hfModel !== undefined) setHfModel(changes.hfModel);
-      if (changes.ollamaUrl !== undefined) setOllamaUrl(changes.ollamaUrl);
-      if (changes.ollamaModel !== undefined) setOllamaModel(changes.ollamaModel);
+      if (changes.activeConfigs !== undefined) setActiveConfigs(changes.activeConfigs);
       if (changes.selectedModel !== undefined) setSelectedModel(changes.selectedModel);
       if (changes.systemPrompt !== undefined) setSystemPrompt(changes.systemPrompt);
       if (changes.customInstruction !== undefined) setCustomInstruction(changes.customInstruction);
@@ -524,23 +550,273 @@ export default function Sidebar() {
     startNewChat();
   };
 
-  const saveApiKey = async () => {
-    const dataToSave = { 
-      geminiApiKey, geminiModel,
-      openAiApiKey, openAiModel,
-      hfApiKey, hfModel,
-      ollamaUrl, ollamaModel,
-      selectedModel
-    };
-    await AppStorage.set(dataToSave);
-    setSaveStatus('success');
-    setTimeout(() => {
-      setSaveStatus('idle');
-      setShowSettings(false);
-      setTestStatus('idle');
-      setTestMessage('');
-    }, 1500);
+  const clearCurrentForm = () => {
+    if (settingsTab === 'gemini') {
+      setGeminiApiKey('');
+      setGeminiModel('gemini-2.5-flash');
+    } else if (settingsTab === 'openai') {
+      setOpenAiApiKey('');
+      setOpenAiModel('gpt-4o');
+    } else if (settingsTab === 'huggingface') {
+      setHfApiKey('');
+      setHfModel('mistralai/Mistral-Nemo-Instruct-2407');
+    } else if (settingsTab === 'ollama') {
+      setOllamaUrl('http://localhost:11434');
+      setOllamaModel('llama3');
+    }
+    setEditingConfigId(null);
+    setTestStatus('idle');
+    setTestMessage('');
   };
+
+  const handleEditConfig = (config) => {
+    setEditingConfigId(config.id);
+    setSettingsTab(config.provider);
+    if (config.provider === 'gemini') {
+      setGeminiApiKey(config.apiKey || '');
+      setGeminiModel(config.model || 'gemini-2.5-flash');
+    } else if (config.provider === 'openai') {
+      setOpenAiApiKey(config.apiKey || '');
+      setOpenAiModel(config.model || 'gpt-4o');
+    } else if (config.provider === 'huggingface') {
+      setHfApiKey(config.apiKey || '');
+      setHfModel(config.model || 'mistralai/Mistral-Nemo-Instruct-2407');
+    } else if (config.provider === 'ollama') {
+      setOllamaUrl(config.url || 'http://localhost:11434');
+      setOllamaModel(config.model || 'llama3');
+    }
+    setTestStatus('idle');
+    setTestMessage('');
+  };
+
+  const handleActivateConfig = async (configId) => {
+    const updated = activeConfigs.map(c => ({
+      ...c,
+      isActive: c.id === configId
+    }));
+    setActiveConfigs(updated);
+    const target = updated.find(c => c.id === configId);
+    if (target) {
+      setSelectedModel(target.provider);
+      const updates = {
+        activeConfigs: updated,
+        selectedModel: target.provider
+      };
+      if (target.provider === 'gemini') {
+        updates.geminiApiKey = target.apiKey;
+        updates.geminiModel = target.model;
+      } else if (target.provider === 'openai') {
+        updates.openAiApiKey = target.apiKey;
+        updates.openAiModel = target.model;
+      } else if (target.provider === 'huggingface') {
+        updates.hfApiKey = target.apiKey;
+        updates.hfModel = target.model;
+      } else if (target.provider === 'ollama') {
+        updates.ollamaUrl = target.url;
+        updates.ollamaModel = target.model;
+      }
+      await AppStorage.set(updates);
+    }
+  };
+
+  const handleDeleteConfig = async (configId) => {
+    const updated = activeConfigs.filter(c => c.id !== configId);
+    setActiveConfigs(updated);
+    if (editingConfigId === configId) {
+      clearCurrentForm();
+    }
+    const updates = { activeConfigs: updated };
+    const wasActive = activeConfigs.find(c => c.id === configId)?.isActive;
+    if (wasActive) {
+      if (updated.length > 0) {
+        updated[0].isActive = true;
+        const next = updated[0];
+        updates.selectedModel = next.provider;
+        if (next.provider === 'gemini') { updates.geminiModel = next.model; updates.geminiApiKey = next.apiKey; }
+        else if (next.provider === 'openai') { updates.openAiModel = next.model; updates.openAiApiKey = next.apiKey; }
+        else if (next.provider === 'huggingface') { updates.hfModel = next.model; updates.hfApiKey = next.apiKey; }
+        else if (next.provider === 'ollama') { updates.ollamaModel = next.model; updates.ollamaUrl = next.url; }
+      } else {
+        updates.selectedModel = '';
+      }
+    }
+    await AppStorage.set(updates);
+  };
+
+  const handleTestConfig = async (config) => {
+    setActionLoading({ provider: config.id, action: 'test' });
+    setTestStatus('loading');
+    setTestMessage(`Testing ${config.provider} (${config.model})...`);
+    try {
+      if (config.provider === 'gemini') {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: "Hello" }] }] })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error?.message || "Invalid API Key or Model");
+        }
+      } else if (config.provider === 'openai') {
+        const res = await fetch('https://api.openai.com/v1/models', {
+          headers: { 'Authorization': `Bearer ${config.apiKey}` }
+        });
+        if (!res.ok) throw new Error("Invalid API Key");
+      } else if (config.provider === 'huggingface') {
+        const res = await fetch('https://huggingface.co/api/whoami-v2', {
+          headers: { 'Authorization': `Bearer ${config.apiKey}` }
+        });
+        if (!res.ok) throw new Error("Invalid Token");
+      } else if (config.provider === 'ollama') {
+        const res = await fetch(`${(config.url || 'http://localhost:11434').replace(/\/$/, '')}/api/version`);
+        if (!res.ok) throw new Error("Could not connect to Ollama");
+      }
+      setTestStatus('success');
+      setTestMessage(`${config.provider.toUpperCase()} (${config.model}) connected successfully!`);
+    } catch (err) {
+      setTestStatus('error');
+      setTestMessage(err.message || 'Connection test failed');
+    } finally {
+      setActionLoading({ provider: null, action: null });
+    }
+  };
+
+  const saveConfig = async (provider = settingsTab) => {
+    setSaveStatus('saving');
+    try {
+      let keyOrUrl = '';
+      let modelId = '';
+
+      if (provider === 'gemini') {
+        keyOrUrl = geminiApiKey.trim() || (editingConfigId ? activeConfigs.find(c => c.id === editingConfigId)?.apiKey : (savedSettings.geminiApiKey || activeConfigs.find(c => c.provider === 'gemini')?.apiKey));
+        modelId = geminiModel.trim() || 'gemini-2.5-flash';
+        if (!keyOrUrl) {
+          setTestStatus('error');
+          setTestMessage('Gemini API key is required');
+          setSaveStatus('idle');
+          return;
+        }
+      } else if (provider === 'openai') {
+        keyOrUrl = openAiApiKey.trim() || (editingConfigId ? activeConfigs.find(c => c.id === editingConfigId)?.apiKey : (savedSettings.openAiApiKey || activeConfigs.find(c => c.provider === 'openai')?.apiKey));
+        modelId = openAiModel.trim() || 'gpt-4o';
+        if (!keyOrUrl) {
+          setTestStatus('error');
+          setTestMessage('OpenAI API key is required');
+          setSaveStatus('idle');
+          return;
+        }
+      } else if (provider === 'huggingface') {
+        keyOrUrl = hfApiKey.trim() || (editingConfigId ? activeConfigs.find(c => c.id === editingConfigId)?.apiKey : (savedSettings.hfApiKey || activeConfigs.find(c => c.provider === 'huggingface')?.apiKey));
+        modelId = hfModel.trim() || 'mistralai/Mistral-Nemo-Instruct-2407';
+        if (!keyOrUrl) {
+          setTestStatus('error');
+          setTestMessage('Hugging Face token is required');
+          setSaveStatus('idle');
+          return;
+        }
+      } else if (provider === 'ollama') {
+        keyOrUrl = ollamaUrl.trim() || (editingConfigId ? activeConfigs.find(c => c.id === editingConfigId)?.url : (savedSettings.ollamaUrl || activeConfigs.find(c => c.provider === 'ollama')?.url)) || 'http://localhost:11434';
+        modelId = ollamaModel.trim() || 'llama3';
+        if (!keyOrUrl) {
+          setTestStatus('error');
+          setTestMessage('Ollama URL is required');
+          setSaveStatus('idle');
+          return;
+        }
+      }
+
+      let updatedConfigs = [...activeConfigs];
+      let configId = editingConfigId;
+
+      if (configId) {
+        // Updating an existing configuration
+        updatedConfigs = updatedConfigs.map(c => {
+          if (c.id === configId) {
+            return {
+              ...c,
+              provider,
+              model: modelId,
+              ...(provider === 'ollama' ? { url: keyOrUrl } : { apiKey: keyOrUrl })
+            };
+          }
+          return c;
+        });
+      } else {
+        // Checking if exact provider & model already exists
+        const existingIdx = updatedConfigs.findIndex(c => c.provider === provider && c.model === modelId);
+        if (existingIdx >= 0) {
+          updatedConfigs[existingIdx] = {
+            ...updatedConfigs[existingIdx],
+            ...(provider === 'ollama' ? { url: keyOrUrl } : { apiKey: keyOrUrl })
+          };
+          configId = updatedConfigs[existingIdx].id;
+        } else {
+          // Adding new model configuration
+          const newId = `${provider}_${modelId.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}`;
+          const isFirst = updatedConfigs.length === 0;
+          const newConfig = {
+            id: newId,
+            provider,
+            model: modelId,
+            ...(provider === 'ollama' ? { url: keyOrUrl } : { apiKey: keyOrUrl }),
+            isActive: isFirst || !updatedConfigs.some(c => c.isActive)
+          };
+          updatedConfigs.push(newConfig);
+          configId = newId;
+        }
+      }
+
+      const activeConf = updatedConfigs.find(c => c.isActive) || updatedConfigs[0];
+      const storageUpdates = {
+        activeConfigs: updatedConfigs,
+        selectedModel: activeConf ? activeConf.provider : provider,
+      };
+
+      if (provider === 'gemini') {
+        storageUpdates.geminiApiKey = keyOrUrl;
+        storageUpdates.geminiModel = modelId;
+      } else if (provider === 'openai') {
+        storageUpdates.openAiApiKey = keyOrUrl;
+        storageUpdates.openAiModel = modelId;
+      } else if (provider === 'huggingface') {
+        storageUpdates.hfApiKey = keyOrUrl;
+        storageUpdates.hfModel = modelId;
+      } else if (provider === 'ollama') {
+        storageUpdates.ollamaUrl = keyOrUrl;
+        storageUpdates.ollamaModel = modelId;
+      }
+
+      setActiveConfigs(updatedConfigs);
+      await AppStorage.set(storageUpdates);
+
+      // FORM KHIALI / RESET:
+      // Clear input fields so the form is clean and empty
+      setGeminiApiKey('');
+      setGeminiModel('gemini-2.5-flash');
+      setOpenAiApiKey('');
+      setOpenAiModel('gpt-4o');
+      setHfApiKey('');
+      setHfModel('mistralai/Mistral-Nemo-Instruct-2407');
+      setOllamaUrl('http://localhost:11434');
+      setOllamaModel('llama3');
+      setEditingConfigId(null);
+
+      setSaveStatus('success');
+      setTestStatus('success');
+      setTestMessage(`Saved ${provider.toUpperCase()} (${modelId})! Form reset.`);
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2500);
+    } catch (err) {
+      console.error(err);
+      setSaveStatus('idle');
+      setTestStatus('error');
+      setTestMessage('Failed to save configuration.');
+    }
+  };
+
+  const saveApiKey = saveConfig;
 
   async function handleTestConnection(provider = settingsTab) {
     if (provider !== settingsTab) setSettingsTab(provider);
@@ -1011,7 +1287,7 @@ export default function Sidebar() {
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-[13px] font-semibold text-slate-800">Providers</label>
                     <div className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                      {[savedSettings.geminiApiKey, savedSettings.openAiApiKey, savedSettings.hfApiKey, savedSettings.ollamaUrl].filter(k => k && k.trim().length > 0).length}/4 Active
+                      {activeConfigs.length} Configured
                     </div>
                   </div>
                   
@@ -1031,17 +1307,38 @@ export default function Sidebar() {
                      ))}
                   </div>
 
+                  {editingConfigId && (
+                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg text-[12px] text-blue-700 mb-3">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Pencil className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">Editing: <strong>{activeConfigs.find(c => c.id === editingConfigId)?.model || 'Configuration'}</strong></span>
+                      </div>
+                      <button 
+                        onClick={clearCurrentForm}
+                        type="button"
+                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 underline ml-2 shrink-0 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+
                   <div className="space-y-3 pt-0">
                     {settingsTab === 'gemini' && (
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-[12px] font-medium text-slate-700 mb-0.5">Gemini API Key</label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[12px] font-medium text-slate-700">Gemini API Key</label>
+                            {savedSettings.geminiApiKey && !geminiApiKey && (
+                              <span className="text-[10px] text-emerald-600 font-medium">Saved key detected</span>
+                            )}
+                          </div>
                           <input 
                             type="password" 
                             value={geminiApiKey} 
                             onChange={(e) => setGeminiApiKey(e.target.value)} 
                             className="w-full border border-slate-300 px-3 py-1.5 rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
-                            placeholder="AIzaSy..."
+                            placeholder={savedSettings.geminiApiKey ? "Using saved key (or enter new key)..." : "AIzaSy..."}
                           />
                         </div>
                         <div>
@@ -1069,13 +1366,18 @@ export default function Sidebar() {
                     {settingsTab === 'openai' && (
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-[12px] font-medium text-slate-700 mb-0.5">OpenAI API Key</label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[12px] font-medium text-slate-700">OpenAI API Key</label>
+                            {savedSettings.openAiApiKey && !openAiApiKey && (
+                              <span className="text-[10px] text-emerald-600 font-medium">Saved key detected</span>
+                            )}
+                          </div>
                           <input 
                             type="password" 
                             value={openAiApiKey} 
                             onChange={(e) => setOpenAiApiKey(e.target.value)} 
                             className="w-full border border-slate-300 px-3 py-1.5 rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
-                            placeholder="sk-..."
+                            placeholder={savedSettings.openAiApiKey ? "Using saved key (or enter new key)..." : "sk-..."}
                           />
                         </div>
                         <div>
@@ -1095,13 +1397,18 @@ export default function Sidebar() {
                     {settingsTab === 'huggingface' && (
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-[12px] font-medium text-slate-700 mb-0.5">Hugging Face Token</label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[12px] font-medium text-slate-700">Hugging Face Token</label>
+                            {savedSettings.hfApiKey && !hfApiKey && (
+                              <span className="text-[10px] text-emerald-600 font-medium">Saved token detected</span>
+                            )}
+                          </div>
                           <input 
                             type="password" 
                             value={hfApiKey} 
                             onChange={(e) => setHfApiKey(e.target.value)} 
                             className="w-full border border-slate-300 px-3 py-1.5 rounded-md text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all shadow-sm"
-                            placeholder="hf_..."
+                            placeholder={savedSettings.hfApiKey ? "Using saved token (or enter new token)..." : "hf_..."}
                           />
                         </div>
                         <div>
@@ -1151,10 +1458,10 @@ export default function Sidebar() {
                     <div className="flex gap-2 pt-2 border-t border-slate-100">
                       <button 
                         onClick={() => handleTestConnection(settingsTab)}
-                        disabled={testStatus === 'testing'}
+                        disabled={testStatus === 'testing' || testStatus === 'loading'}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[12px] font-medium transition-colors disabled:opacity-50"
                       >
-                        {testStatus === 'testing' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                        {testStatus === 'testing' || testStatus === 'loading' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
                         Test Connection
                       </button>
                       <button 
@@ -1162,8 +1469,14 @@ export default function Sidebar() {
                         disabled={saveStatus === 'saving'}
                         className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[12px] font-medium transition-colors disabled:opacity-50"
                       >
-                        {saveStatus === 'saving' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                        Save Config
+                        {saveStatus === 'saving' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : editingConfigId ? (
+                          <Save className="w-3.5 h-3.5" />
+                        ) : (
+                          <Plus className="w-3.5 h-3.5" />
+                        )}
+                        {editingConfigId ? 'Update' : 'Add'}
                       </button>
                     </div>
 
@@ -1180,9 +1493,14 @@ export default function Sidebar() {
                 </div>
 
                 <div className="bg-white p-4 rounded-xl border border-slate-200/60 shadow-sm overflow-hidden">
-                  <label className="block text-[13px] font-semibold text-slate-800 mb-3">Active Configurations</label>
-                  <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <table className="w-full text-left border-collapse">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-[13px] font-semibold text-slate-800">Active Configurations</label>
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      {activeConfigs.length} {activeConfigs.length === 1 ? 'model' : 'models'}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto compact-scrollbar pb-1 -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <table className="w-full text-left border-collapse min-w-[280px]">
                       <thead>
                         <tr className="border-b border-slate-200">
                           <th className="px-3 py-2 text-[11px] font-semibold text-slate-500">Provider</th>
@@ -1191,105 +1509,70 @@ export default function Sidebar() {
                         </tr>
                       </thead>
                       <tbody className="text-[12px]">
-                        {savedSettings.geminiApiKey && (
-                          <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
-                            <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
-                              <Sparkles className="w-3.5 h-3.5 text-blue-500" /> Gemini
-                            </td>
-                            <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.geminiModel || 'gemini-2.5-flash'}</td>
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleProviderAction('gemini', 'activate', async () => { const isActive = savedSettings.selectedModel === 'gemini'; const newModel = isActive ? '' : 'gemini'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('gemini'); })} title={savedSettings.selectedModel === 'gemini' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'gemini' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
-                                  {actionLoading.provider === 'gemini' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => setSettingsTab('gemini')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => handleProviderAction('gemini', 'test', async () => await handleTestConnection('gemini'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'gemini' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => handleProviderAction('gemini', 'delete', async () => await AppStorage.set({ geminiApiKey: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'gemini' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                        {savedSettings.openAiApiKey && (
-                          <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
-                            <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
-                              <Bot className="w-3.5 h-3.5 text-emerald-500" /> OpenAI
-                            </td>
-                            <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.openAiModel || 'gpt-4o'}</td>
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleProviderAction('openai', 'activate', async () => { const isActive = savedSettings.selectedModel === 'openai'; const newModel = isActive ? '' : 'openai'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('openai'); })} title={savedSettings.selectedModel === 'openai' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'openai' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
-                                  {actionLoading.provider === 'openai' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => setSettingsTab('openai')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => handleProviderAction('openai', 'test', async () => await handleTestConnection('openai'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'openai' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => handleProviderAction('openai', 'delete', async () => await AppStorage.set({ openAiApiKey: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'openai' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                        {savedSettings.hfApiKey && (
-                          <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
-                            <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
-                              <Box className="w-3.5 h-3.5 text-amber-500" /> HuggingFace
-                            </td>
-                            <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407'}</td>
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleProviderAction('huggingface', 'activate', async () => { const isActive = savedSettings.selectedModel === 'huggingface'; const newModel = isActive ? '' : 'huggingface'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('huggingface'); })} title={savedSettings.selectedModel === 'huggingface' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'huggingface' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
-                                  {actionLoading.provider === 'huggingface' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => setSettingsTab('huggingface')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => handleProviderAction('huggingface', 'test', async () => await handleTestConnection('huggingface'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'huggingface' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => handleProviderAction('huggingface', 'delete', async () => await AppStorage.set({ hfApiKey: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'huggingface' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                        {savedSettings.ollamaUrl && (
-                          <tr className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
-                            <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
-                              <Server className="w-3.5 h-3.5 text-slate-500" /> Ollama
-                            </td>
-                            <td className="px-3 py-2.5 text-slate-500 truncate max-w-[100px]">{savedSettings.ollamaModel || 'llama3'}</td>
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleProviderAction('ollama', 'activate', async () => { const isActive = savedSettings.selectedModel === 'ollama'; const newModel = isActive ? '' : 'ollama'; await AppStorage.set({ selectedModel: newModel }); setSelectedModel(newModel); if (!isActive) setSettingsTab('ollama'); })} title={savedSettings.selectedModel === 'ollama' ? "Deactivate" : "Set Active"} className={`p-1 rounded-md transition-colors ${savedSettings.selectedModel === 'ollama' ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}>
-                                  {actionLoading.provider === 'ollama' && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => setSettingsTab('ollama')} title="Edit" className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors">
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button onClick={() => handleProviderAction('ollama', 'test', async () => await handleTestConnection('ollama'))} title="Test API" className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'ollama' && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-                                </button>
-                                <button onClick={() => handleProviderAction('ollama', 'delete', async () => await AppStorage.set({ ollamaUrl: '' }))} title="Delete" className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
-                                  {actionLoading.provider === 'ollama' && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                        {!savedSettings.geminiApiKey && !savedSettings.openAiApiKey && !savedSettings.hfApiKey && !savedSettings.ollamaUrl && (
+                        {activeConfigs.length > 0 ? (
+                          activeConfigs.map(config => {
+                            const isCurrentActive = (savedSettings.selectedModel === config.provider && (
+                              config.provider === 'gemini' ? savedSettings.geminiModel === config.model :
+                              config.provider === 'openai' ? savedSettings.openAiModel === config.model :
+                              config.provider === 'huggingface' ? savedSettings.hfModel === config.model :
+                              savedSettings.ollamaModel === config.model
+                            )) || config.isActive;
+
+                            return (
+                              <tr key={config.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
+                                <td className="px-3 py-2.5 font-medium text-slate-700 flex items-center gap-1.5">
+                                  {config.provider === 'gemini' && <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />}
+                                  {config.provider === 'openai' && <Bot className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                                  {config.provider === 'huggingface' && <Box className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                                  {config.provider === 'ollama' && <Server className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
+                                  <span className="capitalize">{config.provider === 'huggingface' ? 'HuggingFace' : config.provider}</span>
+                                  {isCurrentActive && (
+                                    <span className="text-[9px] bg-emerald-100 text-emerald-700 font-semibold px-1.5 py-0.5 rounded-full ml-1 leading-none">
+                                      Active
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-slate-600 truncate max-w-[140px] font-mono text-[11px]">
+                                  {config.model}
+                                </td>
+                                <td className="px-3 py-2.5">
+                                  <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                      onClick={() => handleActivateConfig(config.id)} 
+                                      title={isCurrentActive ? "Active" : "Set as Active Model"} 
+                                      className={`p-1 rounded-md transition-colors ${isCurrentActive ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                      {actionLoading.provider === config.id && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                    </button>
+                                    <button 
+                                      onClick={() => handleEditConfig(config)} 
+                                      title="Edit in form" 
+                                      className="p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-md transition-colors"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleTestConfig(config)} 
+                                      title="Test API" 
+                                      className="p-1 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-md transition-colors"
+                                    >
+                                      {actionLoading.provider === config.id && actionLoading.action === 'test' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteConfig(config.id)} 
+                                      title="Delete" 
+                                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                    >
+                                      {actionLoading.provider === config.id && actionLoading.action === 'delete' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
                           <tr>
-                            <td colSpan="3" className="px-3 py-4 text-center text-slate-400 italic">No providers configured yet</td>
+                            <td colSpan="3" className="px-3 py-4 text-center text-slate-400 italic">No configurations added yet</td>
                           </tr>
                         )}
                       </tbody>
