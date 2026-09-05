@@ -79,4 +79,4 @@ The background service worker injects the Chrome browser-tool executor. The web/
 
 Start as a single browser extension. Add external services only when required by advanced features.
 
-The content script is built separately as a self-contained IIFE and injected programmatically under `activeTab` or a user-approved optional site origin. Background and side-panel entries retain module/chunk output. Extension artifact publication remains disabled until Phase 04.
+The content script is built separately as a self-contained IIFE and injected programmatically under `activeTab` or a user-approved optional site origin. Background and side-panel entries retain module/chunk output, with PDF/OCR, Markdown/syntax, and optional capability code loaded on demand. The release packager includes only the extension-facing `dist` files and excludes server bundles and source maps.

@@ -6,11 +6,11 @@
 | --- | --- |
 | Frozen source | `f8f0817c93fa2cfa4ccca85c2cad051a2ca43e6f` |
 | Total phases | 4 |
-| Completed | 3 |
-| Active phase | None — Phase 04 approval gate |
-| Remaining | 1 |
-| Build/ZIP workflow | Paused until Phase 04 release gate |
-| Production release | Not ready |
+| Completed | 3 finalized; Phase 04 implementation complete as release candidate |
+| Active phase | Phase 04 runtime/release acceptance |
+| Remaining | Installed-Chrome, live-provider/OCR, accessibility, upgrade, store, and final release approval |
+| Build/ZIP workflow | Restored with lint/test/build/package/verify/smoke gates |
+| Production release | Release candidate `v1.0.0.1.3`; final release not approved |
 
 ## Pre-phase governance record
 
@@ -21,7 +21,7 @@ The baseline was verified, the four-phase roadmap locked, findings registered, s
 | 01 — Deterministic Core and State Integrity | Completed | Build/state/storage/session/selector/cancellation integrity | 19/19 tests, lint/build/audit/smoke evidence recorded below |
 | 02 — Unified Providers and Agent Reliability | Completed | Unified reliable provider and tool behavior | 44/44 cumulative tests, lint/build/audit/smoke evidence recorded below |
 | 03 — Security and Real Capability Completion | Completed | Safe policy/privacy/secrets and truthful features | 66/66 cumulative tests, lint/build/audit/smoke evidence recorded below |
-| 04 — Performance, Full QA, and Release | Pending | Optimized verified package and final release | No completion record; implementation not started |
+| 04 — Performance, Full QA, and Release | Implementation complete — release candidate | Optimized verified package and final release | 71 tests, budgeted build, extension-only ZIP/checksum, smoke, and synchronized docs; runtime/release acceptance pending |
 
 ## Mandatory completion record
 
@@ -161,8 +161,39 @@ Limitations carried forward: side-panel bundle above 1 MB and packaged OCR core 
 
 Rollback reference: `011fdd6b65ddb3802ef4eedaaa9acc6d3dc4ad5d`.
 
-## Phase 04 record
+## Phase 04 implementation record
 
-**Pending approval.** It must start from the Phase 03 completion commit after a fresh baseline audit and exact scope-locked plan. Only Phase 04 may restore final artifact generation after all release gates pass and separate release approval is recorded.
+| Field | Record |
+| --- | --- |
+| Approval | Direct user request for Phase 04 implementation; scope follows the locked roadmap and QA matrix |
+| Status | Implementation complete — release candidate `v1.0.0.1.3`; final runtime/release acceptance pending |
+| Start SHA | `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0` |
+| Completion SHA | GitHub commit containing this record; authoritative SHA is recorded after atomic branch push |
+| Findings | F-019 implementation closed; F-021 controlled; F-022 closed; F-007/F-020 runtime/release evidence remains |
+| Compatibility | Existing UI/UX, providers, storage identifiers, feature controls, and least-privilege manifest behavior retained; manifest `1.0.0.2` and `version_name` `v1.0.0.1.3` aligned |
+| Release policy | Candidate artifact generation restored behind CI and local release gates; no final tag/release claimed |
 
-This file must be updated in the same commit that completes a phase. Compilation or a commit message alone is never completion evidence.
+Implemented behavior:
+
+- Lazy-loaded PDF/OCR extraction, Markdown/syntax rendering, and optional capability modules; added explicit limits, timeout/cancellation, and worker cleanup paths.
+- Removed proven-unused debug/dead/empty placeholder assets and added a repository MIT license.
+- Added deterministic extension-only ZIP packaging, source-map/server-output exclusion, SHA-256 checksum, release manifest, release verification, server smoke, tag verification, and gated CI artifact/release jobs.
+- Added `PRIVACY.md`, `RELEASE_NOTES.md`, `docs/PHASE04_QA_MATRIX.md`, and synchronized the roadmap, status, security, architecture, features, traceability, error, README, and changelog records.
+
+Verification evidence:
+
+| Gate | Result |
+| --- | --- |
+| `npm run lint` | Pass — 0 errors |
+| `npm test` | Pass — 71/71 |
+| `npm run build` | Pass — side panel 312.54 kB; local PDF/OCR assets and content-script checks pass |
+| `npm audit --offline --omit=dev --audit-level=high` | Pass — 0 known production vulnerabilities |
+| `npm run package:extension` | Pass — 45 extension files |
+| `npm run verify:release` | Pass — ZIP, manifest, exclusions, checksum, and release manifest |
+| `npm run smoke:server` | Pass — HTTP 200 and safe auth failure |
+
+Release-candidate SHA-256: `721ed373700fa5796828cce8627108f15807f1c1f4a996e13ef59a838ffd7875`.
+
+Remaining acceptance: installed Chrome permission/action/injection tests; credentialed provider/image and OCR runtime/network tests; accessibility; storage upgrade/restart/quota behavior; store-package validation; and explicit final tag/release approval. These are not inferred from compilation or focused Node tests.
+
+Rollback reference: Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0`.

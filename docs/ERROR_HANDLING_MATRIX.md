@@ -15,7 +15,7 @@ This matrix separates existing handlers from required production behavior. “Pr
 | Protected/missing tab | Context failure is safe; `activeTab` injection or contextual optional-origin grant is used | Chrome protected-page matrix remains Phase 04 |
 | Missing/ambiguous selector | Missing targets refresh once; ambiguous targets fail closed; approved targets are fingerprint-rechecked | Rendered dynamic-site E2E remains Phase 04 |
 | Click/type errors | Exceptions are caught; typed value and target fingerprint are checked | Complex site outcome checking remains Phase 04 |
-| PDF/OCR failures | Per-file errors, file/page/text limits, 45-second OCR timeout, and worker cleanup are enforced | Memory/performance/runtime matrix remains Phase 04 |
+| PDF/OCR failures | Per-file errors, file/page/text limits, 45-second OCR timeout, worker cleanup, and on-demand loading are enforced | Installed Chrome/resource/network recognition and memory/runtime acceptance remain |
 | Connection tests | Shared provider/model diagnostics cover Gemini, OpenAI, Hugging Face, and installed Ollama models | Rich recovery guidance remains Phase 03 |
 | Provider action loop | Shared schema validation, 15-step bound, centralized risk policy, and exact action approval | Installed-Chrome action E2E remains Phase 04 |
 | Storage failures | Awaited writes reject false success; secretless public configs use session or encrypted vault recovery | Storage quota/upgrade Chrome E2E remains Phase 04 |
@@ -52,8 +52,8 @@ This matrix separates existing handlers from required production behavior. “Pr
 | `FILE_TYPE_UNSUPPORTED` | Reject before parsing without damaging chat state | 03 implemented |
 | `FILE_TOO_LARGE` | Enforce file/count/page/text limits before heavy parsing/OCR | 03 implemented; performance gate 04 |
 | `CAPABILITY_UNAVAILABLE` | Report disabled/unsupported behavior; never simulate success | 03 implemented |
-| `BUILD_VALIDATION_FAILED` | Block artifact publication and retain diagnostics | 04 |
-| `RELEASE_GATE_FAILED` | Prevent workflow restoration/tag/release | 04 |
+| `BUILD_VALIDATION_FAILED` | Block artifact publication and retain diagnostics | 04 implemented |
+| `RELEASE_GATE_FAILED` | Prevent tag/release and retain diagnostics | 04 implemented |
 
 ## Error contract
 

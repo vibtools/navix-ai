@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.0.0.1.3 — Phase 04 release candidate
+
+### Runtime and packaging
+
+- Lazy-loaded PDF/OCR extraction, Markdown/syntax rendering, and optional capability modules to reduce initial side-panel work.
+- Removed tracked debug/dead files and empty icon placeholders without removing user-facing capabilities.
+- Added deterministic extension-only ZIP packaging that excludes server bundles and source maps.
+- Added package/checksum/release-manifest verification, server smoke testing, version/tag checks, and gated CI artifact/release jobs.
+- Bumped the release-candidate package version to `1.0.0.1.3`; the Chrome manifest remains `1.0.0.2` with `version_name` `v1.0.0.1.3`.
+
+### Documentation and verification
+
+- Added the MIT license, privacy policy, release notes, and Phase 04 QA matrix; synchronized product and production-readiness documents.
+- Automated local gates pass: lint, 71 focused tests, build/bundle budgets, offline production audit, extension package verification, and server smoke.
+- Release-candidate ZIP SHA-256: `721ed373700fa5796828cce8627108f15807f1c1f4a996e13ef59a838ffd7875`.
+- Final production approval still requires installed-Chrome, credentialed provider/OCR, accessibility, upgrade, store, and explicit tag/release acceptance.
+
 ## Unreleased — Production hardening program
 
 ### Documentation and governance
@@ -7,7 +24,7 @@
 - Froze product baseline `v1.0.0.1.2` at `f8f0817c93fa2cfa4ccca85c2cad051a2ca43e6f`.
 - Added the forensic finding register and four-phase roadmap.
 - Added phase, implementation, error, traceability, and approval controls.
-- Paused extension build/ZIP generation until Phase 04 release acceptance.
+- Restored extension build/ZIP generation behind Phase 04 lint/test/build/package/verify/smoke gates; final release remains approval-gated.
 
 ### Runtime
 
@@ -41,10 +58,11 @@
 ### Verification
 
 - `npm run lint` — passed.
-- `npm test` — 66/66 passed.
+- `npm test` — 71/71 passed.
 - `npm run build` — passed, including extension structure/content-script validation.
 - `npm audit --offline --audit-level=high` — 0 known vulnerabilities in the installed lockfile resolution.
-- Local production server smoke — HTTP 200.
+- `npm run package:extension` and `npm run verify:release` — passed; extension-only ZIP and checksum verified.
+- Local production server smoke — HTTP 200 and safe provider-auth failure behavior.
 - Provider/image tests use deterministic mocked protocols; credentialed live-provider, rendered Chrome extension, OCR network/runtime, and full action E2E remain Phase 04 release gates.
 
 ## v1.0.0.1.2 — Frozen baseline

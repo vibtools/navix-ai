@@ -6,7 +6,9 @@ import { isAbortError, toErrorPayload } from './src/core/errorContract.js';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const configuredPort = Number.parseInt(process.env.PORT || '3000', 10);
+  const port = Number.isInteger(configuredPort) && configuredPort >= 0 && configuredPort <= 65_535 ? configuredPort : 3000;
+  const host = process.env.HOST || '0.0.0.0';
 
   app.use(express.json());
 
@@ -78,8 +80,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(port, host, () => {
+    console.log(`Server running on http://localhost:${port}`);
   });
 }
 
