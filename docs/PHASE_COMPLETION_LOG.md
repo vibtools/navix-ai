@@ -6,9 +6,9 @@
 | --- | --- |
 | Frozen source | `f8f0817c93fa2cfa4ccca85c2cad051a2ca43e6f` |
 | Total phases | 4 |
-| Completed | 2 |
-| Active phase | None — Phase 03 approval gate |
-| Remaining | 2 |
+| Completed | 3 |
+| Active phase | None — Phase 04 approval gate |
+| Remaining | 1 |
 | Build/ZIP workflow | Paused until Phase 04 release gate |
 | Production release | Not ready |
 
@@ -20,7 +20,7 @@ The baseline was verified, the four-phase roadmap locked, findings registered, s
 | --- | --- | --- | --- |
 | 01 — Deterministic Core and State Integrity | Completed | Build/state/storage/session/selector/cancellation integrity | 19/19 tests, lint/build/audit/smoke evidence recorded below |
 | 02 — Unified Providers and Agent Reliability | Completed | Unified reliable provider and tool behavior | 44/44 cumulative tests, lint/build/audit/smoke evidence recorded below |
-| 03 — Security and Real Capability Completion | Pending approval | Safe policy/privacy/secrets and truthful features | No completion record; implementation not started |
+| 03 — Security and Real Capability Completion | Completed | Safe policy/privacy/secrets and truthful features | 66/66 cumulative tests, lint/build/audit/smoke evidence recorded below |
 | 04 — Performance, Full QA, and Release | Pending | Optimized verified package and final release | No completion record; implementation not started |
 
 ## Mandatory completion record
@@ -118,10 +118,51 @@ Rollback reference: `a615d16b5fbe56ef3f1a3db800e6165b9ddfa398`.
 
 ## Phase 03 record
 
-**Pending approval.** Exact Phase 03 scope must be planned from this completion state and separately approved.
+| Field | Record |
+| --- | --- |
+| Approval | `APPROVE NAVIX-AI PHASE-03 IMPLEMENTATION — SCOPE LOCKED` |
+| Status | Completed — 2026-09-05 UTC |
+| Start SHA | `011fdd6b65ddb3802ef4eedaaa9acc6d3dc4ad5d` |
+| Completion SHA | Git commit containing this record; authoritative SHA is GitHub `main` after atomic push |
+| Findings closed | F-013; F-014/F-015/F-016/F-017/F-018 scoped root causes |
+| Ongoing | F-007 installed-Chrome/live-provider/OCR E2E; F-019, F-020, F-021, F-022 and Phase 04 release acceptance |
+| Compatibility | Product/version/storage identifiers, provider choices, chat/history, file/PDF/OCR/copy controls, and existing UI visual system retained; required permissions narrowed with contextual grants |
+| Release policy | Build/ZIP workflow remains manually disabled; no tag, release, artifact, dependency change, or version bump |
+
+Implemented behavior:
+
+- Added centralized read/state/sensitive/destructive browser-action classification, HTTP(S)/selector/input validation, and user-selected search-engine URLs.
+- Added exact action modal details, password masking, 30-second request/session-bound approval, one-time/replay denial, cancellation, and optional destination-origin grant.
+- Added target inspection, ambiguity refusal, target fingerprint binding, and immediate pre-execution stale/hidden/disabled revalidation.
+- Added bounded untrusted page/attachment envelopes and a trusted policy/capability channel; unsafe Markdown URLs and remote response images are blocked.
+- Removed required `tabs`, `<all_urls>`, and static all-page content-script injection; retained active-tab operation and contextual optional HTTP(S) origins.
+- Added secretless public provider configs, session credential storage, optional PBKDF2-SHA-256/AES-GCM persistent vault, migration/unlock/relock/clear behavior, and legacy-key scrub.
+- Added first-use external-transmission consent plus file allowlist/count/size, PDF page/text, OCR timeout, and cleanup limits. PDF and OCR executable workers are packaged locally; OCR English language data uses one declared host.
+- Replaced prompt-only behavior with real local CSV/JSON/TXT/XLSX reading, real CSV/XLSX export, data analysis, email grouping, synthetic identity/address generation, artifact preview/download, and real Gemini/OpenAI image requests with timeout/cancellation.
+
+Verification evidence:
+
+| Gate | Result |
+| --- | --- |
+| `npm run lint` | Pass — 0 errors |
+| `npm test` | Pass — 66/66 cumulative |
+| `npm run build` | Pass — manifest/content-script/local PDF+OCR asset structure verified |
+| `npm audit --offline --omit=dev` | Pass — 0 known vulnerabilities in installed production resolution |
+| Production server smoke | Pass — UI HTTP 200; missing provider selection returns safe `INVALID_REQUEST` failure |
+| Action/security tests | Pass — URL/risk/masking, approve/deny/replay/mismatch/abort, injection envelope/limits, safe rendered URLs |
+| Secret/permission tests | Pass — crypto round-trip/wrong passphrase, secretless config, migration scrub/relock, least-privilege manifest/workflow lock |
+| Capability tests | Pass — CSV/JSON/XLSX round-trip, analysis, email grouping, synthetic data, artifacts, Gemini/OpenAI image requests and auth redaction |
+| Compatibility/security scan | Pass — version/storage/workflow unchanged; no committed credential pattern, key logging, broad required host access, or remote OCR executable code path |
+| Rendered Chrome/live-provider/OCR E2E | Not executed — no credentialed installed-Chrome runtime in audit; retained as Phase 04 gate |
+
+Changed areas: action/confirmation/trust/file/credential core contracts; background and content execution; Sidebar security/capability wiring; least-privilege manifest; local capability modules and UI dialogs/drawer; build verification; focused tests; synchronized documentation. Existing screen structure and visual system were not redesigned.
+
+Limitations carried forward: side-panel bundle above 1 MB and packaged OCR core size; full installed-Chrome action/permission/accessibility/upgrade tests; live provider/image/OCR tests; performance budgets; repository hygiene/license decision; release package/workflow/tag/release.
+
+Rollback reference: `011fdd6b65ddb3802ef4eedaaa9acc6d3dc4ad5d`.
 
 ## Phase 04 record
 
-**Pending.** It cannot begin before Phase 03 acceptance. Only this phase may restore final artifact generation after release-gate approval.
+**Pending approval.** It must start from the Phase 03 completion commit after a fresh baseline audit and exact scope-locked plan. Only Phase 04 may restore final artifact generation after all release gates pass and separate release approval is recorded.
 
 This file must be updated in the same commit that completes a phase. Compilation or a commit message alone is never completion evidence.

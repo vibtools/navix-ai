@@ -6,13 +6,21 @@
   "description": "Your AI Browser Copilot for intelligent browsing, research and automation.",
   "permissions": [
     "sidePanel",
-    "tabs",
     "activeTab",
     "scripting",
     "storage"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.openai.com/*",
+    "https://router.huggingface.co/*",
+    "https://cdn.jsdelivr.net/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
   ],
   "background": {
     "service_worker": "src/background.js",
@@ -29,12 +37,6 @@
       "128": "logo/branding/navix-ai-light-icon.png"
     }
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["src/content.js"]
-    }
-  ],
   "icons": {
     "16": "logo/branding/navix-ai-light-icon.png",
     "48": "logo/branding/navix-ai-light-icon.png",

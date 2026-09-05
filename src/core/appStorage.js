@@ -88,6 +88,14 @@ export function createAppStorage(environment = globalThis) {
     });
   });
 
+  const chromeRemove = (keys) => new Promise((resolve, reject) => {
+    chromeStorage().remove(keys, () => {
+      const error = environment.chrome?.runtime?.lastError;
+      if (error) reject(storageError(ErrorCode.STORAGE_WRITE_FAILED, error.message || 'Chrome storage removal failed.', error));
+      else resolve();
+    });
+  });
+
   const localGet = (keys) => {
     if (typeof environment.localStorage?.getItem !== 'function') {
       throw new AppError(ErrorCode.STORAGE_UNAVAILABLE, 'Local storage is unavailable.');
@@ -113,6 +121,13 @@ export function createAppStorage(environment = globalThis) {
     for (const [key, value] of Object.entries(data)) {
       environment.localStorage?.setItem(`${LOCAL_PREFIX}${key}`, JSON.stringify(value));
     }
+  };
+
+  const localRemove = (keys) => {
+    if (typeof environment.localStorage?.removeItem !== 'function') {
+      throw new AppError(ErrorCode.STORAGE_UNAVAILABLE, 'Local storage is unavailable.');
+    }
+    keys.forEach((key) => environment.localStorage.removeItem(`${LOCAL_PREFIX}${key}`));
   };
 
   const idbGet = async (database, keys) => {
@@ -182,6 +197,30 @@ export function createAppStorage(environment = globalThis) {
         dispatchError(error);
         return { ok: false, error: toErrorPayload(error) };
       });
+    },
+
+    async remove(keys) {
+      const normalizedKeys = Array.isArray(keys) ? keys : [keys];
+      try {
+        if (chromeStorage()) await chromeRemove(normalizedKeys);
+        else {
+          const database = await openDatabase();
+          if (database) {
+            const transaction = database.transaction(STORE_NAME, 'readwrite');
+            const done = transactionDone(transaction);
+            const store = transaction.objectStore(STORE_NAME);
+            normalizedKeys.forEach((key) => store.delete(key));
+            await done;
+          } else {
+            localRemove(normalizedKeys);
+          }
+        }
+        return { ok: true };
+      } catch (cause) {
+        const error = cause instanceof AppError ? cause : storageError(ErrorCode.STORAGE_WRITE_FAILED, 'Unable to remove local settings.', cause);
+        dispatchError(error);
+        return { ok: false, error: toErrorPayload(error) };
+      }
     },
 
     listen(callback) {

@@ -8,7 +8,7 @@ Move the frozen Navix AI baseline to production readiness in exactly four contro
 | --- | --- | --- | --- |
 | 01 | Deterministic Core and State Integrity | Stable build, sessions, storage, cancellation, selectors, and minimum quality gates | Completed — 2026-09-04 UTC |
 | 02 | Unified Providers and Agent Reliability | One provider contract, reliable streaming/errors, and capability-correct agent execution | Completed — 2026-09-04 UTC |
-| 03 | Security and Real Capability Completion | Safe actions, privacy/secret controls, prompt-injection defenses, and truthful features | Pending approval |
+| 03 | Security and Real Capability Completion | Safe actions, privacy/secret controls, prompt-injection defenses, and truthful features | Completed — 2026-09-05 UTC |
 | 04 | Performance, Full QA, and Release | Optimized package, full regression evidence, restored build workflow, versioned release | Pending |
 
 ## Phase 01 — Deterministic Core and State Integrity
@@ -82,6 +82,10 @@ A confirmation modal/drawer and privacy/capability indicators may be required. T
 ### Exit criteria
 
 Sensitive actions require valid approval; injection tests cannot bypass policy; secrets stay out of logs/errors/exports; permission/privacy behavior matches disclosures; every enabled visible capability is verified.
+
+### Completion evidence
+
+Phase 03 closed the scoped root causes in F-013 through F-018. Risk/action, approval replay/denial/cancellation, trust-boundary, encrypted/session credential, least-privilege manifest, structured-file/XLSX, local capability, image-provider, and regression tests bring the cumulative suite to 66 passing tests. Lint, build structure, offline dependency audit, secret/permission scan, and production-server smoke pass. Full installed-Chrome, live-credential provider/image/OCR, accessibility, performance, upgrade, and packaging evidence remains exclusively in Phase 04.
 
 ## Phase 04 — Performance, Full QA, and Release
 

@@ -92,10 +92,13 @@ export const geminiAdapter = Object.freeze({
     };
   },
   async probe(context) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(context.attempt.model)}?key=${encodeURIComponent(context.attempt.apiKey)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(context.attempt.model)}`;
     let response;
     try {
-      response = await (context.fetchImpl || fetch)(url, { signal: context.signal });
+      response = await (context.fetchImpl || fetch)(url, {
+        signal: context.signal,
+        headers: { 'x-goog-api-key': context.attempt.apiKey }
+      });
     } catch (error) {
       throw normalizeProviderFailure(ProviderId.GEMINI, error);
     }

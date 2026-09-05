@@ -17,8 +17,8 @@ export const BROWSER_TOOL_DEFINITIONS = Object.freeze([
   {
     type: 'function',
     function: {
-      name: 'google_search',
-      description: 'Search Google in the active browser tab.',
+      name: 'web_search',
+      description: 'Search the user-selected web search engine in the active browser tab.',
       parameters: {
         type: 'object',
         properties: { query: { type: 'string', description: 'Search query.' } },
@@ -80,6 +80,7 @@ export const BROWSER_TOOL_DEFINITIONS = Object.freeze([
 ]);
 
 const definitionsByName = new Map(BROWSER_TOOL_DEFINITIONS.map((tool) => [tool.function.name, tool.function]));
+definitionsByName.set('google_search', definitionsByName.get('web_search'));
 
 export function validateBrowserToolCall(call) {
   const definition = definitionsByName.get(call?.name);

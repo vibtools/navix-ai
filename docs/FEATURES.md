@@ -2,7 +2,7 @@
 
 > This file states product goals, not completion evidence. Use [Actual Implementation Status](ACTUAL_IMPLEMENTATION_STATUS.md) for verified working, partial, prompt-only/demo, and missing capabilities. Production work is controlled by the [four-phase roadmap](PRODUCTION_ROADMAP.md).
 
-Phases 01 and 02 changed internal reliability without redesigning the existing UI/UX. Session/storage/cancellation integrity and deterministic gates are implemented. Gemini, OpenAI, Hugging Face, and Ollama now share provider, streaming, error, context, diagnostics, fallback, and capability-aware tool contracts. Sensitive-action confirmation, trust boundaries, secret lifecycle, permission hardening, and prompt-only capability completion remain Phase 03 work.
+Phases 01-03 hardened the product without redesigning the existing UI/UX. Session/storage/cancellation integrity, deterministic gates, unified providers, exact sensitive-action approval, untrusted-content boundaries, credential lifecycle, least-privilege page access, consent, and real data/artifact/generator/email/image engines are implemented and focused-test verified. Installed-Chrome/live-provider/OCR E2E, performance, packaging, upgrade, and release acceptance remain Phase 04 work.
 
 ## Version 1 Goals
 

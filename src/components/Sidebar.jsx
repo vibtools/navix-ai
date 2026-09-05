@@ -5,6 +5,23 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { AppStorage } from '../core/appStorage.js';
 import { createRequestId, createSessionId } from '../core/sessionProtocol.js';
+import { CredentialVault, collectLegacyCredentials, credentialsFromConfigs, hydrateProviderConfigs, publicProviderConfigs } from '../core/credentialVault.js';
+import { ACTION_DECISION, ACTION_CONFIRMATION } from '../core/confirmationProtocol.js';
+import { IMAGE_CANCEL_REQUEST, IMAGE_GENERATE_REQUEST } from '../capabilities/imageGeneration.js';
+import { validateUploadBatch, FILE_LIMITS, limitExtractedText } from '../core/filePolicy.js';
+import { parseStructuredFile, structuredRowsToText } from '../capabilities/structuredData.js';
+import { analyzeRows, formatAnalysis } from '../capabilities/dataAnalysis.js';
+import { generateSyntheticIdentity } from '../capabilities/generators.js';
+import { formatEmailGroups, groupEmailRows } from '../capabilities/emailGrouper.js';
+import { extractArtifacts } from '../capabilities/artifacts.js';
+import { isSafeRenderedUrl } from '../core/trustBoundary.js';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import ocrWorkerUrl from 'tesseract.js/dist/worker.min.js?url';
+import ocrCoreUrl from 'tesseract.js-core/tesseract-core-lstm.wasm.js?url';
+import { ActionConfirmationDialog, CredentialVaultDialog } from './SecurityDialogs.jsx';
+import CapabilityDrawer from './CapabilityDrawer.jsx';
+
+const OCR_LANGUAGE_PATH = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int';
 
 function toProviderAttempt(config) {
   const provider = config?.provider;
@@ -227,6 +244,13 @@ export default function Sidebar() {
   const [tempCustomInstruction, setTempCustomInstruction] = useState('');
   const [responseLanguage, setResponseLanguage] = useState('Auto');
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState(null);
+  const [capabilityDrawer, setCapabilityDrawer] = useState(null);
+  const [credentialMode, setCredentialMode] = useState('legacy');
+  const [vaultPassphrase, setVaultPassphrase] = useState('');
+  const [vaultError, setVaultError] = useState('');
+  const [showVaultDialog, setShowVaultDialog] = useState(false);
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   
   const [testStatus, setTestStatus] = useState('idle');
   const [testMessage, setTestMessage] = useState('');
@@ -292,7 +316,9 @@ export default function Sidebar() {
   const scrollRef = useRef(null);
   const portRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const imageRequestIdRef = useRef(null);
   const textareaRef = useRef(null);
+  const credentialsRef = useRef({});
 
   useEffect(() => {
     AppStorage.get([
@@ -306,8 +332,12 @@ export default function Sidebar() {
       'defaultModel', 'autoModelSwitch',
       'dataAnalysis', 'searchEnabled', 'searchEngine',
       'pluginNameGenerator', 'pluginAddressGenerator', 'pluginCsvGenerator', 'pluginEmailGrouper',
-      'artifactsEnabled', 'imageGenEnabled', 'imageGenModel', 'customInstructionsEnabled', 'responseLanguage'
-    ]).then(result => {
+      'artifactsEnabled', 'imageGenEnabled', 'imageGenModel', 'customInstructionsEnabled', 'responseLanguage',
+      'privacyConsent'
+    ]).then(async result => {
+      const vaultState = await CredentialVault.initialize();
+      setCredentialMode(vaultState.mode);
+      if (result.privacyConsent !== undefined) setPrivacyConsent(Boolean(result.privacyConsent));
       if (result.cachedGeminiModels) setGeminiModelList(result.cachedGeminiModels);
       if (result.selectedModel) setSelectedModel(result.selectedModel);
 
@@ -352,7 +382,17 @@ export default function Sidebar() {
           });
         }
       }
+      const legacyCredentials = collectLegacyCredentials(configs, result);
+      let runtimeCredentials = vaultState.credentials;
+      if (Object.keys(runtimeCredentials).length === 0 && Object.keys(legacyCredentials).length > 0) {
+        runtimeCredentials = legacyCredentials;
+        await CredentialVault.writeSession(runtimeCredentials);
+      }
+      credentialsRef.current = runtimeCredentials;
+      configs = hydrateProviderConfigs(configs, runtimeCredentials);
       setActiveConfigs(configs);
+      if (vaultState.mode === 'legacy' && Object.keys(legacyCredentials).length > 0) setShowVaultDialog(true);
+      if (vaultState.mode === 'encrypted' && Object.keys(runtimeCredentials).length === 0) setShowVaultDialog(true);
       
       if (result.chatSessions) {
         setChatSessions(result.chatSessions);
@@ -411,11 +451,11 @@ export default function Sidebar() {
       // Init SavedSettings truth
       setSavedSettings({
         activeConfigs: configs,
-        geminiApiKey: result.geminiApiKey || '',
+        geminiApiKey: configs.find(c => c.provider === 'gemini')?.apiKey || result.geminiApiKey || '',
         geminiModel: result.geminiModel || 'gemini-2.5-flash',
-        openAiApiKey: result.openAiApiKey || '',
+        openAiApiKey: configs.find(c => c.provider === 'openai')?.apiKey || result.openAiApiKey || '',
         openAiModel: result.openAiModel || 'gpt-4o',
-        hfApiKey: result.hfApiKey || '',
+        hfApiKey: configs.find(c => c.provider === 'huggingface')?.apiKey || result.hfApiKey || '',
         hfModel: result.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407',
         ollamaUrl: result.ollamaUrl || 'http://localhost:11434',
         ollamaModel: result.ollamaModel || 'llama3',
@@ -441,6 +481,11 @@ export default function Sidebar() {
 
       if (result.chatHistory) setChat(result.chatHistory);
       setChatLoaded(true);
+    }).catch((error) => {
+      console.error('Unable to initialize local extension state:', error);
+      setVaultError(error.message || 'Unable to initialize credential storage.');
+      setCredentialMode('session');
+      setChatLoaded(true);
     });
     
     // Listen for cross-tab or storage changes
@@ -450,7 +495,7 @@ export default function Sidebar() {
         return;
       }
       setSavedSettings(prev => ({ ...prev, ...changes }));
-      if (changes.activeConfigs !== undefined) setActiveConfigs(changes.activeConfigs);
+      if (changes.activeConfigs !== undefined) setActiveConfigs(hydrateProviderConfigs(changes.activeConfigs, credentialsRef.current));
       if (changes.selectedModel !== undefined) setSelectedModel(changes.selectedModel);
       if (changes.systemPrompt !== undefined) setSystemPrompt(changes.systemPrompt);
       if (changes.customInstruction !== undefined) setCustomInstruction(changes.customInstruction);
@@ -491,7 +536,10 @@ export default function Sidebar() {
 
   useEffect(() => {
     if (chatLoaded) {
-      AppStorage.set({ chatHistory: chat });
+      const persistedChat = chat.map(({ imageDataUrl, status, ...item }) => imageDataUrl
+        ? { ...item, text: item.text || '[Generated image — open chat session did not persist image bytes.]' }
+        : { ...item, ...(status ? { status: '' } : {}) });
+      AppStorage.set({ chatHistory: persistedChat });
       
       if (chat.length > 0) {
         setChatSessions(prevSessions => {
@@ -513,14 +561,14 @@ export default function Sidebar() {
               ...newSessions[sessionIndex],
               title,
               updatedAt: Date.now(),
-              messages: chat
+              messages: persistedChat
             };
           } else {
             newSessions.unshift({
               id: sessionId,
               title,
               updatedAt: Date.now(),
-              messages: chat
+              messages: persistedChat
             });
           }
           
@@ -613,6 +661,103 @@ export default function Sidebar() {
     setTestMessage('');
   };
 
+  const persistSecureConfigs = async (configs, extra = {}, passphrase = vaultPassphrase) => {
+    const credentials = credentialsFromConfigs(configs);
+    const metadataResult = await AppStorage.set({ ...extra, activeConfigs: publicProviderConfigs(configs) });
+    if (!metadataResult.ok) throw new Error(metadataResult.error?.message || 'Unable to save provider configuration.');
+    if (credentialMode === 'encrypted') {
+      if (!passphrase || passphrase.length < 10) {
+        setVaultError('Unlock the encrypted vault before changing provider credentials.');
+        setShowVaultDialog(true);
+        throw new Error('Credential vault is locked.');
+      }
+      await CredentialVault.persistEncrypted(credentials, passphrase);
+    } else {
+      await CredentialVault.migrateSessionOnly(credentials);
+      if (credentialMode !== 'session') setCredentialMode('session');
+    }
+    credentialsRef.current = credentials;
+    const scrubResult = await AppStorage.remove(['geminiApiKey', 'openAiApiKey', 'hfApiKey']);
+    if (!scrubResult.ok) throw new Error(scrubResult.error?.message || 'Unable to remove legacy provider credentials.');
+    setSavedSettings((previous) => ({
+      ...previous,
+      ...extra,
+      activeConfigs: configs,
+      geminiApiKey: configs.find((config) => config.provider === 'gemini')?.apiKey || '',
+      openAiApiKey: configs.find((config) => config.provider === 'openai')?.apiKey || '',
+      hfApiKey: configs.find((config) => config.provider === 'huggingface')?.apiKey || ''
+    }));
+    return metadataResult;
+  };
+
+  const migrateVaultSessionOnly = async () => {
+    try {
+      setVaultError('');
+      const credentials = collectLegacyCredentials(activeConfigs, savedSettings);
+      const metadataResult = await AppStorage.set({ activeConfigs: publicProviderConfigs(activeConfigs) });
+      if (!metadataResult.ok) throw new Error(metadataResult.error?.message || 'Unable to secure provider metadata.');
+      await CredentialVault.migrateSessionOnly(credentials);
+      credentialsRef.current = credentials;
+      const scrubResult = await AppStorage.remove(['geminiApiKey', 'openAiApiKey', 'hfApiKey']);
+      if (!scrubResult.ok) throw new Error(scrubResult.error?.message || 'Unable to remove legacy provider credentials.');
+      setCredentialMode('session');
+      setShowVaultDialog(false);
+    } catch (error) {
+      setVaultError(error.message || 'Credential migration failed.');
+    }
+  };
+
+  const migrateVaultEncrypted = async (passphrase) => {
+    try {
+      setVaultError('');
+      const credentials = collectLegacyCredentials(activeConfigs, savedSettings);
+      const metadataResult = await AppStorage.set({ activeConfigs: publicProviderConfigs(activeConfigs) });
+      if (!metadataResult.ok) throw new Error(metadataResult.error?.message || 'Unable to secure provider metadata.');
+      await CredentialVault.persistEncrypted(credentials, passphrase);
+      credentialsRef.current = credentials;
+      const scrubResult = await AppStorage.remove(['geminiApiKey', 'openAiApiKey', 'hfApiKey']);
+      if (!scrubResult.ok) throw new Error(scrubResult.error?.message || 'Unable to remove legacy provider credentials.');
+      setVaultPassphrase(passphrase);
+      setCredentialMode('encrypted');
+      setShowVaultDialog(false);
+    } catch (error) {
+      setVaultError(error.message || 'Credential migration failed.');
+    }
+  };
+
+  const unlockCredentialVault = async (passphrase) => {
+    try {
+      setVaultError('');
+      const credentials = await CredentialVault.unlock(passphrase);
+      credentialsRef.current = credentials;
+      setActiveConfigs((configs) => hydrateProviderConfigs(configs, credentials));
+      const credentialFor = (provider) => {
+        const config = activeConfigs.find((item) => item.provider === provider && credentials[item.id]);
+        return config ? credentials[config.id] : '';
+      };
+      setSavedSettings((previous) => ({
+        ...previous,
+        geminiApiKey: credentialFor('gemini'),
+        openAiApiKey: credentialFor('openai'),
+        hfApiKey: credentialFor('huggingface')
+      }));
+      setVaultPassphrase(passphrase);
+      setShowVaultDialog(false);
+    } catch (error) {
+      setVaultError(error.message || 'Unable to unlock credential vault.');
+    }
+  };
+
+  const relockCredentialVault = async () => {
+    await CredentialVault.relock();
+    credentialsRef.current = {};
+    setVaultPassphrase('');
+    setActiveConfigs((configs) => publicProviderConfigs(configs));
+    setSavedSettings((previous) => ({ ...previous, geminiApiKey: '', openAiApiKey: '', hfApiKey: '' }));
+    setCredentialMode('encrypted');
+    setShowVaultDialog(true);
+  };
+
   const handleEditConfig = (config) => {
     setEditingConfigId(config.id);
     setSettingsTab(config.provider);
@@ -643,23 +788,19 @@ export default function Sidebar() {
     if (target) {
       setSelectedModel(target.provider);
       const updates = {
-        activeConfigs: updated,
         selectedModel: target.provider
       };
       if (target.provider === 'gemini') {
-        updates.geminiApiKey = target.apiKey;
         updates.geminiModel = target.model;
       } else if (target.provider === 'openai') {
-        updates.openAiApiKey = target.apiKey;
         updates.openAiModel = target.model;
       } else if (target.provider === 'huggingface') {
-        updates.hfApiKey = target.apiKey;
         updates.hfModel = target.model;
       } else if (target.provider === 'ollama') {
         updates.ollamaUrl = target.url;
         updates.ollamaModel = target.model;
       }
-      await AppStorage.set(updates);
+      await AppStorage.set({ ...updates, activeConfigs: publicProviderConfigs(updated) });
     }
   };
 
@@ -673,19 +814,16 @@ export default function Sidebar() {
       const updated = activeConfigs.map(c => ({ ...c, isActive: c.id === target.id }));
       setActiveConfigs(updated);
       setSelectedModel(provider);
-      const updates = { activeConfigs: updated, selectedModel: provider };
+      const updates = { activeConfigs: publicProviderConfigs(updated), selectedModel: provider };
       
       if (provider === 'gemini') {
         setGeminiModel(model);
-        updates.geminiApiKey = target.apiKey;
         updates.geminiModel = model;
       } else if (provider === 'openai') {
         setOpenAiModel(model);
-        updates.openAiApiKey = target.apiKey;
         updates.openAiModel = model;
       } else if (provider === 'huggingface') {
         setHfModel(model);
-        updates.hfApiKey = target.apiKey;
         updates.hfModel = model;
       } else if (provider === 'ollama') {
         setOllamaModel(model);
@@ -707,26 +845,31 @@ export default function Sidebar() {
 
   const handleDeleteConfig = async (configId) => {
     const updated = activeConfigs.filter(c => c.id !== configId);
-    setActiveConfigs(updated);
     if (editingConfigId === configId) {
       clearCurrentForm();
     }
-    const updates = { activeConfigs: updated };
+    const updates = {};
     const wasActive = activeConfigs.find(c => c.id === configId)?.isActive;
     if (wasActive) {
       if (updated.length > 0) {
         updated[0].isActive = true;
         const next = updated[0];
         updates.selectedModel = next.provider;
-        if (next.provider === 'gemini') { updates.geminiModel = next.model; updates.geminiApiKey = next.apiKey; }
-        else if (next.provider === 'openai') { updates.openAiModel = next.model; updates.openAiApiKey = next.apiKey; }
-        else if (next.provider === 'huggingface') { updates.hfModel = next.model; updates.hfApiKey = next.apiKey; }
+        if (next.provider === 'gemini') { updates.geminiModel = next.model; }
+        else if (next.provider === 'openai') { updates.openAiModel = next.model; }
+        else if (next.provider === 'huggingface') { updates.hfModel = next.model; }
         else if (next.provider === 'ollama') { updates.ollamaModel = next.model; updates.ollamaUrl = next.url; }
       } else {
         updates.selectedModel = '';
       }
     }
-    await AppStorage.set(updates);
+    try {
+      await persistSecureConfigs(updated, updates);
+      setActiveConfigs(updated);
+    } catch (error) {
+      setTestStatus('error');
+      setTestMessage(error.message || 'Unable to delete provider configuration.');
+    }
   };
 
   const handleTestConfig = async (config) => {
@@ -834,27 +977,22 @@ export default function Sidebar() {
 
       const activeConf = updatedConfigs.find(c => c.isActive) || updatedConfigs[0];
       const storageUpdates = {
-        activeConfigs: updatedConfigs,
         selectedModel: activeConf ? activeConf.provider : provider,
       };
 
       if (provider === 'gemini') {
-        storageUpdates.geminiApiKey = keyOrUrl;
         storageUpdates.geminiModel = modelId;
       } else if (provider === 'openai') {
-        storageUpdates.openAiApiKey = keyOrUrl;
         storageUpdates.openAiModel = modelId;
       } else if (provider === 'huggingface') {
-        storageUpdates.hfApiKey = keyOrUrl;
         storageUpdates.hfModel = modelId;
       } else if (provider === 'ollama') {
         storageUpdates.ollamaUrl = keyOrUrl;
         storageUpdates.ollamaModel = modelId;
       }
 
+      await persistSecureConfigs(updatedConfigs, storageUpdates);
       setActiveConfigs(updatedConfigs);
-      const storageResult = await AppStorage.set(storageUpdates);
-      if (!storageResult.ok) throw new Error(storageResult.error.message);
 
       // FORM KHIALI / RESET:
       // Clear input fields so the form is clean and empty
@@ -921,7 +1059,9 @@ export default function Sidebar() {
     setTestStatus('loading');
     setTestMessage('Fetching latest models from Google...');
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiApiKey}`);
+      const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+        headers: { 'x-goog-api-key': geminiApiKey }
+      });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error?.message || "Failed to fetch models.");
@@ -950,6 +1090,10 @@ export default function Sidebar() {
   }
 
   const stopGeneration = () => {
+    if (imageRequestIdRef.current && typeof chrome !== 'undefined' && chrome.runtime?.id) {
+      chrome.runtime.sendMessage({ type: IMAGE_CANCEL_REQUEST, requestId: imageRequestIdRef.current }).catch(() => {});
+      imageRequestIdRef.current = null;
+    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -971,107 +1115,88 @@ export default function Sidebar() {
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
-    
+    let validated;
+    try {
+      validated = validateUploadBatch(files);
+    } catch (error) {
+      setChat((items) => [...items, { role: 'assistant', text: `**⚠️ File error:** ${error.message}` }]);
+      e.target.value = '';
+      return;
+    }
     setIsUploading(true);
     setUploadProgress(0);
-    
     const newFiles = [];
-    
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    const readFile = (file, method) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => resolve(event.target.result);
+      reader.onerror = () => reject(reader.error || new Error(`Unable to read ${file.name}.`));
+      reader[method](file);
+    });
+
+    for (let i = 0; i < validated.length; i++) {
+      const { file, extension } = validated[i];
       const isImage = file.type.startsWith('image/');
-      const isPdf = file.type === 'application/pdf';
-      
-      const fileData = await new Promise((resolve) => {
-        const reader = new FileReader();
-        
-        if (isPdf) {
-          // Dynamic import for pdfjs
-          import('pdfjs-dist/build/pdf.min.mjs').then((pdfjs) => {
-            pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-            
-            reader.onload = async (event) => {
-              try {
-                const typedarray = new Uint8Array(event.target.result);
-                const pdf = await pdfjs.getDocument(typedarray).promise;
-                let textContent = '';
-                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                  const page = await pdf.getPage(pageNum);
-                  const text = await page.getTextContent();
-                  textContent += text.items.map(s => s.str).join(' ') + '\n';
-                }
-                resolve({
-                  name: file.name,
-                  type: file.type,
-                  content: textContent,
-                  isImage: false,
-                  isPdf: true
-                });
-              } catch (err) {
-                console.error('Error parsing PDF:', err);
-                resolve({
-                  name: file.name,
-                  type: file.type,
-                  content: 'Error parsing PDF content.',
-                  isImage: false,
-                  isPdf: true
-                });
-              }
-            };
-            reader.readAsArrayBuffer(file);
-          }).catch((err) => {
-            console.error('Error loading PDF support:', err);
-              resolve({
-                name: file.name,
-                type: file.type,
-                content: 'Error parsing PDF content.',
-                isImage: false,
-                isPdf: true
-              });
-          });
+      try {
+        let fileData;
+        if (extension === 'pdf') {
+          const pdfjs = await import('pdfjs-dist/build/pdf.min.mjs');
+          pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+          const arrayBuffer = await readFile(file, 'readAsArrayBuffer');
+          const pdf = await pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+          if (pdf.numPages > FILE_LIMITS.maxPdfPages) throw new Error(`PDF exceeds the ${FILE_LIMITS.maxPdfPages}-page limit.`);
+          let textContent = '';
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+            const page = await pdf.getPage(pageNum);
+            const text = await page.getTextContent();
+            textContent += `${text.items.map((item) => item.str).join(' ')}\n`;
+          }
+          const limited = limitExtractedText(textContent);
+          fileData = { name: file.name, type: file.type, content: limited.text, truncated: limited.truncated, isImage: false, isPdf: true };
         } else if (isImage) {
-          reader.onload = async (event) => {
-            let textContent = '';
-            try {
-              // Dynamic import for tesseract
-              const Tesseract = await import('tesseract.js');
-              const { data: { text } } = await Tesseract.recognize(event.target.result, 'eng');
-              textContent = text;
-            } catch (err) {
-              console.error('Error during OCR:', err);
-            }
-            
-            resolve({
-              name: file.name,
-              type: file.type,
-              content: event.target.result,
-              extractedText: textContent,
-              isImage: true,
-              isPdf: false
+          const dataUrl = await readFile(file, 'readAsDataURL');
+          let extractedText = '';
+          let ocrWorker = null;
+          let ocrTimer = null;
+          try {
+            const Tesseract = await import('tesseract.js');
+            const recognition = (async () => {
+              ocrWorker = await Tesseract.createWorker('eng', 1, {
+                workerPath: ocrWorkerUrl,
+                workerBlobURL: false,
+                corePath: ocrCoreUrl,
+                langPath: OCR_LANGUAGE_PATH
+              });
+              return ocrWorker.recognize(dataUrl);
+            })();
+            const timeout = new Promise((_, reject) => {
+              ocrTimer = setTimeout(() => reject(new Error('OCR timed out after 45 seconds.')), 45_000);
             });
-          };
-          reader.readAsDataURL(file);
+            const { data } = await Promise.race([recognition, timeout]);
+            extractedText = limitExtractedText(data?.text || '').text;
+          } catch (error) {
+            extractedText = `[OCR unavailable: ${error.message || 'processing failed'}]`;
+          } finally {
+            clearTimeout(ocrTimer);
+            await ocrWorker?.terminate().catch(() => {});
+          }
+          fileData = { name: file.name, type: file.type, content: dataUrl, extractedText, isImage: true, isPdf: false };
         } else {
-          reader.onload = (event) => {
-            resolve({
-              name: file.name,
-              type: file.type,
-              content: event.target.result,
-              isImage: false,
-              isPdf: false
-            });
+          const arrayBuffer = extension === 'xlsx' ? await readFile(file, 'readAsArrayBuffer') : null;
+          const text = extension === 'xlsx' ? '' : await readFile(file, 'readAsText');
+          const rows = await parseStructuredFile({ name: file.name, text, arrayBuffer });
+          const analysis = analyzeRows(rows);
+          const emailGroups = groupEmailRows(rows);
+          fileData = {
+            name: file.name, type: file.type, rows, analysis, emailGroups,
+            content: structuredRowsToText(rows), isImage: false, isPdf: false
           };
-          reader.readAsText(file);
         }
-      });
-      
-      newFiles.push(fileData);
+        newFiles.push(fileData);
+      } catch (error) {
+        newFiles.push({ name: file.name, type: file.type, content: `[File processing failed: ${error.message}]`, error: error.message, isImage: false, isPdf: extension === 'pdf' });
+      }
       setUploadProgress(Math.round(((i + 1) / files.length) * 100));
-      
-      // Artificial slight delay to allow UI to render progress if processing is too fast
-      await new Promise((resolve) => { setTimeout(resolve, 50); }); 
     }
-    
     setUploadedFiles(prev => [...prev, ...newFiles]);
     setIsUploading(false);
     setUploadProgress(0);
@@ -1114,6 +1239,13 @@ export default function Sidebar() {
       return;
     }
 
+    if (!privacyConsent && (includeContext || forceContext || includeScreenshot || uploadedFiles.length > 0 || imageGenEnabled)) {
+      const accepted = window.confirm('Navix AI will send the enabled page/file/screenshot or image prompt data to the selected AI provider. Continue and remember this choice?');
+      if (!accepted) return;
+      setPrivacyConsent(true);
+      await AppStorage.set({ privacyConsent: true });
+    }
+
     const requestSessionId = currentSessionId || createSessionId();
     if (!currentSessionId) {
       setCurrentSessionId(requestSessionId);
@@ -1136,16 +1268,32 @@ export default function Sidebar() {
           // Try to fetch context from the active tab if running as a Chrome Extension
           const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
           if (activeTab && activeTab.id) {
-            const contextResponse = await new Promise((resolve) => {
-              chrome.tabs.sendMessage(activeTab.id, { action: "get_page_context" }, (response) => {
-                if (chrome.runtime.lastError) {
-                  console.warn("Could not fetch page context. Ensure content script is injected.", chrome.runtime.lastError);
-                  resolve(null);
-                } else {
-                  resolve(response);
-                }
+            const requestContext = () => new Promise((resolve, reject) => {
+              chrome.tabs.sendMessage(activeTab.id, { action: 'get_page_context' }, (response) => {
+                if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                else resolve(response);
               });
             });
+            let contextResponse;
+            try {
+              contextResponse = await requestContext();
+            } catch {
+              try {
+                await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, files: ['src/content.js'] });
+                contextResponse = await requestContext();
+              } catch (injectionError) {
+                const url = activeTab.url ? new URL(activeTab.url) : null;
+                if (url && ['http:', 'https:'].includes(url.protocol) && chrome.permissions) {
+                  const origin = `${url.origin}/*`;
+                  const granted = await chrome.permissions.request({ origins: [origin] });
+                  if (granted) {
+                    await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, files: ['src/content.js'] });
+                    contextResponse = await requestContext();
+                  }
+                }
+                if (!contextResponse) throw injectionError;
+              }
+            }
             
             if (contextResponse && contextResponse.text) {
               domContext = `URL: ${contextResponse.url}\nTitle: ${contextResponse.title}\n\nContent:\n${contextResponse.text}`;
@@ -1161,11 +1309,14 @@ export default function Sidebar() {
     }
 
     let pluginContext = '';
+    const syntheticIdentity = (savedSettings.pluginNameGenerator || savedSettings.pluginAddressGenerator)
+      ? generateSyntheticIdentity()
+      : null;
     if (savedSettings.pluginNameGenerator) {
-      pluginContext += "\n[PLUGIN: Name Generator Active] Use the following static name data for any form-fill operations instead of generating from scratch: Alex Carter.";
+      pluginContext += `\n[Name Generator] Synthetic identity: ${syntheticIdentity.firstName} ${syntheticIdentity.lastName}. Treat it as synthetic test data.`;
     }
     if (savedSettings.pluginAddressGenerator) {
-      pluginContext += "\n[PLUGIN: Address Generator Active] Use the following static address data for any form-fill operations instead of generating from scratch: 456 Innovation Drive, Tech City, TC 90210.";
+      pluginContext += `\n[Address Generator] Synthetic address: ${syntheticIdentity.address}, ${syntheticIdentity.city}, ${syntheticIdentity.postalCode}, ${syntheticIdentity.country}. Treat it as synthetic test data.`;
     }
     if (savedSettings.pluginCsvGenerator) {
       pluginContext += "\n[PLUGIN: CSV/Excel/TXT Generator & Reader Active] You have capabilities to read and generate structured files (CSV/Excel/TXT).";
@@ -1182,15 +1333,13 @@ export default function Sidebar() {
     if (dataAnalysis) {
       pluginContext += "\n[CAPABILITY: Data Analysis Active] Analytical, computational, and structured dataset queries are prioritized.";
     }
-    if (pluginContext) {
-      domContext += (domContext ? "\n\n" : "") + "--- ACTIVE SYSTEM PLUGINS ---\n" + pluginContext.trim();
-    }
-
     const requestAttachments = uploadedFiles.map(f => {
         let contentToInject = f.content;
         if (f.isImage && f.extractedText) {
           contentToInject = `[Image OCR Extracted Text]:\n${f.extractedText}`;
         }
+        if (f.analysis && dataAnalysis) contentToInject += `\n\n[LOCAL DATA ANALYSIS]\n${formatAnalysis(f.analysis)}`;
+        if (f.emailGroups?.length && savedSettings.pluginEmailGrouper) contentToInject += `\n\n[LOCAL EMAIL GROUPS]\n${formatEmailGroups(f.emailGroups)}`;
         return { name: f.name, content: contentToInject };
       }).filter(file => typeof file.content === 'string' && file.content.trim());
     if (requestAttachments.length > 0) {
@@ -1211,6 +1360,33 @@ export default function Sidebar() {
       });
     }
 
+    if (imageGenEnabled) {
+      setChat((items) => [...items, { role: 'assistant', text: '', status: `Generating with ${imageGenModel}...` }]);
+      try {
+        if (!(typeof chrome !== 'undefined' && chrome.runtime?.id)) throw new Error('Image generation is available in the installed extension.');
+        const imageRequestId = createRequestId();
+        imageRequestIdRef.current = imageRequestId;
+        const response = await chrome.runtime.sendMessage({ type: IMAGE_GENERATE_REQUEST, requestId: imageRequestId, prompt: userMessage, imageModel: imageGenModel, attempt: primaryAttempt });
+        if (!response?.success) throw new Error(response?.error?.message || 'Image generation failed.');
+        const imageDataUrl = `data:${response.result.mimeType};base64,${response.result.data}`;
+        setChat((items) => {
+          const next = [...items];
+          next[next.length - 1] = { role: 'assistant', text: `Generated with ${imageGenModel}.`, status: '', imageDataUrl };
+          return next;
+        });
+      } catch (error) {
+        setChat((items) => {
+          const next = [...items];
+          next[next.length - 1] = { role: 'assistant', text: `**⚠️ Image generation error:** ${error.message}`, status: '' };
+          return next;
+        });
+      } finally {
+        imageRequestIdRef.current = null;
+        setLoading(false);
+      }
+      return;
+    }
+
     setChat((items) => [...items, { role: 'assistant', text: '', status: '' }]);
 
     const executeRequest = () => {
@@ -1229,7 +1405,10 @@ export default function Sidebar() {
         systemPrompt,
         customInstruction,
         customInstructionsEnabled,
-        responseLanguage
+        responseLanguage,
+        capabilityContext: pluginContext.trim(),
+        searchEnabled: Boolean(savedSettings.searchEnabled),
+        searchEngine: savedSettings.searchEngine || 'google'
       };
 
       const handleError = (errorMsg) => {
@@ -1254,7 +1433,14 @@ export default function Sidebar() {
           
           streamPort.onMessage.addListener((msg) => {
             if (msg.requestId && msg.requestId !== requestId) return;
-            if (msg.error) {
+            if (msg.type === ACTION_CONFIRMATION && msg.confirmation) {
+              setPendingConfirmation(msg.confirmation);
+              setChat(prev => {
+                const next = [...prev];
+                next[next.length - 1].status = 'Waiting for action approval';
+                return next;
+              });
+            } else if (msg.error) {
               receivedError = true;
               let errorMsg = typeof msg.error === 'object' ? (msg.error.message || JSON.stringify(msg.error)) : String(msg.error);
               try {
@@ -1296,6 +1482,7 @@ export default function Sidebar() {
           streamPort.onDisconnect.addListener(() => {
             if (portRef.current !== streamPort) return;
             portRef.current = null;
+            setPendingConfirmation(null);
             setLoading(false);
             setChat(prev => {
               const next = [...prev];
@@ -1364,6 +1551,32 @@ export default function Sidebar() {
 
     executeRequest();
   }
+
+  const handleActionDecision = async (approved) => {
+    const confirmation = pendingConfirmation;
+    if (!confirmation) return;
+    let finalApproval = approved;
+    if (approved && confirmation.requiredOrigin && confirmation.requiredOrigin !== confirmation.origin && chrome?.permissions) {
+      try {
+        const parsed = new URL(confirmation.requiredOrigin);
+        if (['http:', 'https:'].includes(parsed.protocol)) {
+          const originPattern = `${parsed.origin}/*`;
+          const alreadyGranted = await chrome.permissions.contains({ origins: [originPattern] });
+          if (!alreadyGranted) finalApproval = await chrome.permissions.request({ origins: [originPattern] });
+        }
+      } catch {
+        finalApproval = false;
+      }
+    }
+    portRef.current?.postMessage({
+      type: ACTION_DECISION,
+      confirmationId: confirmation.confirmationId,
+      requestId: confirmation.requestId,
+      sessionId: confirmation.sessionId,
+      approved: finalApproval
+    });
+    setPendingConfirmation(null);
+  };
 
   if (showSettings) {
     return (
@@ -1795,6 +2008,15 @@ export default function Sidebar() {
                   <h3 className="text-[13px] font-semibold text-slate-800">Your Data</h3>
                   <p className="text-[11px] text-slate-500">Manage and export your personal chat data.</p>
                 </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-3"><div><p className="text-[12px] font-semibold text-slate-700">Credential vault</p><p className="mt-0.5 text-[10px] text-slate-500">Mode: {credentialMode === 'encrypted' ? 'Encrypted persistent vault' : credentialMode === 'session' ? 'Session only' : 'Migration required'}</p></div><button onClick={() => setShowVaultDialog(true)} className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-medium text-blue-600 shadow-sm ring-1 ring-slate-200">Manage</button></div>
+                  {credentialMode === 'encrypted' && <button onClick={relockCredentialVault} className="mt-2 w-full rounded-lg bg-slate-200/70 px-2.5 py-1.5 text-[11px] font-medium text-slate-700 hover:bg-slate-200">Relock now</button>}
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-3"><div><p className="text-[12px] font-semibold text-slate-700">External data consent</p><p className="mt-0.5 text-[10px] text-slate-500">{privacyConsent ? 'Remembered for enabled context/files/screenshots.' : 'Not granted.'}</p></div><button onClick={() => { setPrivacyConsent(false); AppStorage.set({ privacyConsent: false }); }} className="rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-medium text-slate-600 shadow-sm ring-1 ring-slate-200">Revoke</button></div>
+                </div>
                 
                 <div className="pt-2 border-t border-slate-100">
                   <button 
@@ -1938,6 +2160,14 @@ export default function Sidebar() {
             )}
           </div>
         </aside>
+        {showVaultDialog && <CredentialVaultDialog
+          mode={credentialMode}
+          error={vaultError}
+          onSessionOnly={migrateVaultSessionOnly}
+          onEncrypt={migrateVaultEncrypted}
+          onUnlock={unlockCredentialVault}
+          onClose={credentialMode === 'encrypted' ? () => setShowVaultDialog(false) : null}
+        />}
       </div>
     );
   }
@@ -2292,6 +2522,12 @@ return (
                   ) : (
                     <div className="flex flex-col gap-1.5">
                       <div className="markdown-body text-[13px]">
+                        {item.imageDataUrl && (
+                          <div className="mb-2 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                            <img src={item.imageDataUrl} alt="AI generated" className="h-auto w-full" />
+                            <a href={item.imageDataUrl} download="navix-generated-image.png" className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-3 py-2 text-[11px] font-medium text-blue-600 hover:bg-blue-50"><Download className="h-3.5 w-3.5" />Download image</a>
+                          </div>
+                        )}
                         <ReactMarkdown
                           components={{
                             code({node, inline, className, children, ...props}) {
@@ -2310,11 +2546,20 @@ return (
                                   {children}
                                 </code>
                               );
+                            },
+                            a({ href, children }) {
+                              return isSafeRenderedUrl(href) ? <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{children}</a> : <span title="Blocked unsafe link">{children}</span>;
+                            },
+                            img({ alt }) {
+                              return <span className="inline-flex rounded bg-amber-50 px-2 py-1 text-[10px] text-amber-700" title="Remote images are blocked to prevent tracking and data exfiltration">[Remote image blocked{alt ? `: ${alt}` : ''}]</span>;
                             }
                           }}
                         >
                           {item.text}
                         </ReactMarkdown>
+                        {artifactsEnabled && extractArtifacts(item.text).length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">{extractArtifacts(item.text).map((artifact) => <button key={artifact.id} onClick={() => setCapabilityDrawer({ kind: 'artifact', ...artifact })} className="rounded-lg bg-teal-50 px-2 py-1 text-[10px] font-medium text-teal-700 hover:bg-teal-100">Open {artifact.language} artifact</button>)}</div>
+                        )}
                       </div>
                       <div className="flex justify-end pt-1 mt-1 border-t border-slate-200/60">
                         <CopyButton text={item.text} />
@@ -2358,6 +2603,7 @@ return (
               ref={fileInputRef} 
               className="hidden" 
               multiple 
+              accept=".txt,.csv,.json,.xlsx,.pdf,.png,.jpg,.jpeg,.webp"
               onChange={handleFileUpload} 
             />
             <button 
@@ -2728,10 +2974,10 @@ return (
                   {file.isImage ? (
                     <img src={file.content} alt={file.name} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-slate-400">
+                    <button type="button" onClick={() => file.rows && setCapabilityDrawer({ kind: 'data', ...file })} className="flex h-full w-full flex-col items-center justify-center text-slate-400" title={file.rows ? 'Open local data tools' : file.name}>
                       <FileText className="w-5 h-5 mb-0.5" />
                       <span className="text-[8px] font-medium uppercase truncate w-10 text-center">{file.name.split('.').pop()}</span>
-                    </div>
+                    </button>
                   )}
                   <button 
                     onClick={() => removeFile(idx)} 
@@ -2867,6 +3113,16 @@ return (
         </div>
       )}
       </aside>
+      <ActionConfirmationDialog confirmation={pendingConfirmation} onDecision={handleActionDecision} />
+      {showVaultDialog && <CredentialVaultDialog
+        mode={credentialMode}
+        error={vaultError}
+        onSessionOnly={migrateVaultSessionOnly}
+        onEncrypt={migrateVaultEncrypted}
+        onUnlock={unlockCredentialVault}
+        onClose={credentialMode === 'encrypted' ? () => setShowVaultDialog(false) : null}
+      />}
+      <CapabilityDrawer item={capabilityDrawer} onClose={() => setCapabilityDrawer(null)} />
     </div>
   );
 }

@@ -94,6 +94,21 @@ test('provider probe rejects an unavailable selected model', async () => {
   }), (error) => error.code === 'PROVIDER_MODEL_UNSUPPORTED');
 });
 
+test('Gemini diagnostics keep credentials out of the request URL', async () => {
+  let captured;
+  await geminiAdapter.probe({
+    ...baseContext,
+    attempt: { provider: 'gemini', model: 'gemini-test', apiKey: 'secret' },
+    fetchImpl: async (url, options) => {
+      captured = { url, options };
+      return Response.json({ supportedGenerationMethods: ['generateContent'] });
+    }
+  });
+  assert.equal(captured.url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-test');
+  assert.equal(captured.options.headers['x-goog-api-key'], 'secret');
+  assert.doesNotMatch(captured.url, /secret|\?key=/);
+});
+
 test('Gemini adapter preserves parallel identical tool calls from distinct response parts', async () => {
   async function* stream() {
     yield {

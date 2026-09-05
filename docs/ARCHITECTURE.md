@@ -56,6 +56,13 @@ Responsible for:
 - `providerContract.js`: provider/model/credential isolation and normalized tool-call shapes.
 - `promptContext.js`: single application of system/custom/language/page/file/screenshot inputs.
 - `sseParser.js`: stateful fragmented Server-Sent Events parsing.
+- `actionPolicy.js` and `confirmationProtocol.js`: risk classification, validated action details, expiring request-bound one-time approval, and fail-closed denial/replay behavior.
+- `trustBoundary.js` and `filePolicy.js`: bounded untrusted page/file envelopes, injection-risk markers, rendered-URL policy, and upload limits.
+- `credentialVault.js`: secretless public provider records, session credentials, and optional PBKDF2-SHA-256/AES-GCM persistent storage.
+
+### Capability Engines
+
+Local modules implement structured CSV/JSON/TXT/XLSX reading, real XLSX generation, data analysis, synthetic identity/address generation, email grouping, and artifact extraction/download. The image module maps the existing Gemini/OpenAI image choices to real provider requests. PDF, OCR, and capability modules are loaded only when used; OCR worker/core code is packaged locally while its English language-data download is restricted to the declared CDN host.
 
 ### AI Provider Layer
 
@@ -72,4 +79,4 @@ The background service worker injects the Chrome browser-tool executor. The web/
 
 Start as a single browser extension. Add external services only when required by advanced features.
 
-The content script is built separately as a self-contained IIFE because manifest-declared content scripts cannot depend on runtime ES-module imports. Background and side-panel entries retain module/chunk output. Extension artifact publication remains disabled until Phase 04.
+The content script is built separately as a self-contained IIFE and injected programmatically under `activeTab` or a user-approved optional site origin. Background and side-panel entries retain module/chunk output. Extension artifact publication remains disabled until Phase 04.

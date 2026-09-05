@@ -22,6 +22,14 @@ function chromeEnvironment({ writeError = null } = {}) {
               callback();
               environment.chrome.runtime.lastError = null;
             }, 0);
+          },
+          remove(keys, callback) {
+            setTimeout(() => {
+              environment.chrome.runtime.lastError = writeError ? { message: writeError } : null;
+              if (!writeError) keys.forEach((key) => delete data[key]);
+              callback();
+              environment.chrome.runtime.lastError = null;
+            }, 0);
           }
         },
         onChanged: {
@@ -63,6 +71,20 @@ test('Chrome storage failures return a stable error result', async () => {
   assert.equal(result.error.message, 'Local storage quota was exceeded.');
 });
 
+test('credential scrubbing reports completion and storage failures accurately', async () => {
+  const successEnvironment = chromeEnvironment();
+  const successStorage = createAppStorage(successEnvironment.environment);
+  await successStorage.set({ geminiApiKey: 'legacy' });
+  assert.deepEqual(await successStorage.remove(['geminiApiKey']), { ok: true });
+  assert.equal(successEnvironment.data.geminiApiKey, undefined);
+
+  const failedEnvironment = chromeEnvironment({ writeError: 'quota exceeded' });
+  const failedStorage = createAppStorage(failedEnvironment.environment);
+  const failed = await failedStorage.remove(['geminiApiKey']);
+  assert.equal(failed.ok, false);
+  assert.equal(failed.error.code, 'STORAGE_QUOTA_EXCEEDED');
+});
+
 test('storage listeners are removable', () => {
   const { environment, storageListeners } = chromeEnvironment();
   const storage = createAppStorage(environment);
@@ -77,7 +99,8 @@ test('legacy localStorage keys remain readable and writes keep the same prefix',
   const environment = {
     localStorage: {
       getItem: (key) => data.get(key) ?? null,
-      setItem: (key, value) => data.set(key, value)
+      setItem: (key, value) => data.set(key, value),
+      removeItem: (key) => data.delete(key)
     },
     dispatchEvent: () => {},
     addEventListener: () => {},

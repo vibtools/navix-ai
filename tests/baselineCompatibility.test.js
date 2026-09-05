@@ -2,14 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('Phase 01 preserves extension identity, permissions and version', async () => {
+test('Phase 03 preserves extension identity/version and applies locked least privilege', async () => {
   const manifest = JSON.parse(await readFile(new URL('../public/manifest.json', import.meta.url), 'utf8'));
   const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(manifest.name, 'Navix AI');
   assert.equal(manifest.version, '1.0.0.1');
   assert.equal(manifest.version_name, 'v1.0.0.1.2');
   assert.equal(packageJson.version, '1.0.0.1.2');
-  assert.deepEqual(manifest.permissions, ['sidePanel', 'tabs', 'activeTab', 'scripting', 'storage']);
+  assert.deepEqual(manifest.permissions, ['sidePanel', 'activeTab', 'scripting', 'storage']);
+  assert.ok(!manifest.host_permissions.includes('<all_urls>'));
+  assert.ok(manifest.host_permissions.includes('https://cdn.jsdelivr.net/*'));
+  assert.deepEqual(manifest.optional_host_permissions, ['https://*/*', 'http://*/*']);
+  assert.equal(manifest.content_scripts, undefined);
 });
 
 test('legacy storage database and key prefix remain compatible', async () => {

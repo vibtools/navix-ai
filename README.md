@@ -8,7 +8,7 @@
 
 ## Production Hardening Status
 
-The verified `v1.0.0.1.2` baseline is in an approval-gated, four-phase production-hardening program. Phases 01 and 02 are complete. Core state/build integrity and one shared provider execution contract now cover Gemini, OpenAI, Hugging Face, and Ollama with buffered streaming, normalized errors, capability-aware tools, structured context, diagnostics, and isolated fallback. Production readiness has not yet been declared because Phase 03 security/capability work and Phase 04 full E2E/release gates remain. Extension build/ZIP artifact generation remains paused until the Phase 04 release gate.
+The verified `v1.0.0.1.2` baseline is in an approval-gated, four-phase production-hardening program. Phases 01, 02, and 03 are complete. The extension now has deterministic state/build contracts, unified Gemini/OpenAI/Hugging Face/Ollama execution, exact approval for sensitive browser actions, untrusted-content isolation, session/encrypted credential storage, least-privilege page access, explicit external-data consent, and real local/provider-backed capability engines. Production readiness has not yet been declared because Phase 04 performance, credentialed Chrome/provider E2E, packaging, and release gates remain. Extension build/ZIP artifact generation remains paused until the Phase 04 release gate.
 
 Current feature truth, open findings, phase progress, and approval rules are maintained in the [documentation index](docs/DOCUMENTATION_INDEX.md).
 
@@ -31,7 +31,7 @@ Flexibility is key. You can integrate any AI model you prefer:
 A seamless sidebar chat interface that stays with you as you browse. Talk to your AI agent directly while it reads, analyzes, and interacts with the current tab in real-time.
 
 ### 🚀 Autonomous Web Actions (Live AI)
-Just tell the AI what to do, and watch it work:
+Supported tools can act on the active page. Sensitive/destructive actions show their exact target, destination, and data and require one-time approval:
 - **Navigation:** *"Open this website..."*
 - **Form Filling & Interaction:** *"Input these details into the form,"* or *"Click the download button."*
 - **Dynamic Element Understanding:** The AI is capable of reading live pages and understanding A-Z of dynamic web elements.
@@ -40,7 +40,7 @@ Just tell the AI what to do, and watch it work:
 Let the AI do the heavy lifting for your research:
 - **Site Audits:** *"Analyze this website and summarize its core features."*
 - **Data Collection:** *"Extract all the relevant data/contacts from this page."*
-- **Autonomous Google Research:** *"Search Google for [Topic], visit the top results, and find the best platforms for me."*
+- **Controlled Web Research:** Search with the selected Google, Bing, or DuckDuckGo engine; each external query/navigation remains governed by action approval and site permission.
 
 ### 🎨 Developer & Design Tools
 - **Design Analysis & Cloning:** *"Analyze this site's UI and write the code to clone its design."*
@@ -61,7 +61,7 @@ Browser Extension (UI & Sidebar)
 ```
 
 ## 🛠️ Development Phase
-Phase 02 is complete. The next approval-gated continuation point is Phase 03 — security and real capability completion.
+Phase 03 is complete. The next approval-gated continuation point is Phase 04 — performance, full QA, packaging, and release.
 
 ## 📚 Production Documentation
 

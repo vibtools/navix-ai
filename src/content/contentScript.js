@@ -4,18 +4,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   try {
     // Robust selector function that handles data-ai-id, CSS selectors, and fuzzy attribute/text matching
     const findElement = (selector) => {
-      if (!selector) return null;
+      if (!selector) return { el: null };
+      const chooseUnique = (matches) => {
+        if (matches.length === 1) return { el: matches[0] };
+        if (matches.length > 1) {
+          return { error: `Selector is ambiguous and matches ${matches.length} elements: ${selector}`, code: 'DOM_TARGET_AMBIGUOUS' };
+        }
+        return null;
+      };
       
       // 1. Check for pure numeric data-ai-id
       if (/^\d+$/.test(selector)) {
-        const el = document.querySelector(`[data-ai-id="${selector}"]`);
-        if (el) return el;
+        const match = chooseUnique([...document.querySelectorAll(`[data-ai-id="${selector}"]`)]);
+        if (match) return match;
       }
       
       // 2. Try standard CSS querySelector
       try {
-        const el = document.querySelector(selector);
-        if (el) return el;
+        const match = chooseUnique([...document.querySelectorAll(selector)]);
+        if (match) return match;
       } catch(e) {
         // Selector was invalid CSS, we will fallback to fuzzy matching
       }
@@ -25,6 +32,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const interactives = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])');
       
       // Phase A: Exact match on important attributes or text
+      const exactMatches = [];
       for (const el of interactives) {
         const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
         const name = (el.getAttribute('name') || '').toLowerCase();
@@ -41,11 +49,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           text === lowerSelector ||
           type === lowerSelector
         ) {
-          return el;
+          exactMatches.push(el);
         }
       }
+      const exact = chooseUnique(exactMatches);
+      if (exact) return exact;
       
       // Phase B: Partial match fallback
+      const partialMatches = [];
       for (const el of interactives) {
         const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
         const name = (el.getAttribute('name') || '').toLowerCase();
@@ -58,14 +69,56 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           (placeholder && placeholder.includes(lowerSelector)) || 
           (text && text.includes(lowerSelector))
         ) {
-          return el;
+          partialMatches.push(el);
         }
       }
+      const partial = chooseUnique(partialMatches);
+      if (partial) return partial;
       
-      return null;
+      return { el: null };
     };
 
-    if (request.action === "get_page_context" || request.action === "read_page") {
+    const targetDetails = (el) => {
+      if (!el) return null;
+      const form = el.form || el.closest?.('form');
+      const href = el.href || el.closest?.('a[href]')?.href || '';
+      const details = {
+        tag: String(el.tagName || '').toLowerCase(),
+        type: String(el.getAttribute?.('type') || ''),
+        name: String(el.getAttribute?.('name') || ''),
+        ariaLabel: String(el.getAttribute?.('aria-label') || ''),
+        text: String(el.innerText || el.value || el.textContent || '').trim().slice(0, 240),
+        href,
+        formAction: String(form?.action || ''),
+        formMethod: String(form?.method || '').toUpperCase(),
+        isPassword: el.getAttribute?.('type') === 'password',
+        isSubmit: ['submit', 'image'].includes(el.getAttribute?.('type')) || String(el.tagName).toLowerCase() === 'button' && (!el.getAttribute?.('type') || el.getAttribute?.('type') === 'submit'),
+        disabled: Boolean(el.disabled || el.getAttribute?.('aria-disabled') === 'true'),
+        hidden: !(el.getClientRects?.().length) || window.getComputedStyle(el).visibility === 'hidden'
+      };
+      details.fingerprint = JSON.stringify([details.tag, details.type, details.name, details.ariaLabel, details.text, details.href, details.formAction]);
+      return details;
+    };
+
+    const verifiedTarget = (selector) => {
+      const match = findElement(selector);
+      if (match.error) return match;
+      const el = match.el;
+      if (!el) return { error: `Element not found: ${selector}` };
+      const target = targetDetails(el);
+      if (request.expectedTarget && request.expectedTarget !== target.fingerprint) {
+        return { error: 'Element changed after approval.', code: 'DOM_TARGET_STALE' };
+      }
+      if (target.disabled || target.hidden) return { error: 'The selected element is disabled or not visible.', code: 'DOM_TARGET_STALE' };
+      return { el, target };
+    };
+
+    if (request.action === 'inspect_target') {
+      const result = verifiedTarget(request.args?.selector);
+      if (result.error) sendResponse({ success: false, code: result.code || 'DOM_TARGET_STALE', error: result.error });
+      else sendResponse({ success: true, target: result.target });
+    }
+    else if (request.action === "get_page_context" || request.action === "read_page") {
       // Assign unique IDs to interactive elements in the live DOM for reliable AI targeting
       ensureUniqueInteractiveIds(document);
 
@@ -131,7 +184,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     } 
     else if (request.action === "click_element") {
-      const el = findElement(request.args.selector);
+      const verified = verifiedTarget(request.args.selector);
+      const el = verified.el;
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         // slight delay to allow scroll
@@ -144,11 +198,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         }, 300);
       } else {
-        sendResponse({ error: `Element not found: ${request.args.selector}` });
+        sendResponse({ error: verified.error, code: verified.code });
       }
     } 
     else if (request.action === "type_text") {
-      const el = findElement(request.args.selector);
+      const verified = verifiedTarget(request.args.selector);
+      const el = verified.el;
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setTimeout(() => {
@@ -190,11 +245,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         }, 300);
       } else {
-        sendResponse({ error: `Element not found: ${request.args.selector}` });
+        sendResponse({ error: verified.error, code: verified.code });
       }
     }
     else if (request.action === "press_enter") {
-      const el = findElement(request.args.selector);
+      const verified = verifiedTarget(request.args.selector);
+      const el = verified.el;
       if (el) {
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
         el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, bubbles: true }));
@@ -202,7 +258,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         el.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', keyCode: 13, bubbles: true }));
         sendResponse({ success: true, message: `Pressed Enter on ${request.args.selector}` });
       } else {
-        sendResponse({ error: `Element not found: ${request.args.selector}` });
+        sendResponse({ error: verified.error, code: verified.code });
       }
     }
     else {
