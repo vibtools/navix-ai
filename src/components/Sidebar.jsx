@@ -1,27 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, ChevronUp, Check, Zap, Server, Box, Loader2, Pencil, Save, Download, Puzzle, MessageSquare, Search, MoreVertical, FileText, Image as ImageIcon, SlidersHorizontal, Globe, Languages, SquarePen, LayoutGrid, Code2, Info, Copy } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { AppStorage } from '../core/appStorage.js';
 import { createRequestId, createSessionId } from '../core/sessionProtocol.js';
 import { CredentialVault, collectLegacyCredentials, credentialsFromConfigs, hydrateProviderConfigs, publicProviderConfigs } from '../core/credentialVault.js';
 import { ACTION_DECISION, ACTION_CONFIRMATION } from '../core/confirmationProtocol.js';
 import { IMAGE_CANCEL_REQUEST, IMAGE_GENERATE_REQUEST } from '../capabilities/imageGeneration.js';
-import { validateUploadBatch, FILE_LIMITS, limitExtractedText } from '../core/filePolicy.js';
-import { parseStructuredFile, structuredRowsToText } from '../capabilities/structuredData.js';
-import { analyzeRows, formatAnalysis } from '../capabilities/dataAnalysis.js';
-import { generateSyntheticIdentity } from '../capabilities/generators.js';
-import { formatEmailGroups, groupEmailRows } from '../capabilities/emailGrouper.js';
-import { extractArtifacts } from '../capabilities/artifacts.js';
-import { isSafeRenderedUrl } from '../core/trustBoundary.js';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import ocrWorkerUrl from 'tesseract.js/dist/worker.min.js?url';
-import ocrCoreUrl from 'tesseract.js-core/tesseract-core-lstm.wasm.js?url';
+import { validateUploadBatch } from '../core/filePolicy.js';
 import { ActionConfirmationDialog, CredentialVaultDialog } from './SecurityDialogs.jsx';
-import CapabilityDrawer from './CapabilityDrawer.jsx';
 
-const OCR_LANGUAGE_PATH = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int';
+const MarkdownContent = lazy(() => import('./MarkdownContent.jsx'));
+const CapabilityDrawer = lazy(() => import('./CapabilityDrawer.jsx'));
 
 function toProviderAttempt(config) {
   const provider = config?.provider;
@@ -1139,48 +1127,26 @@ export default function Sidebar() {
       try {
         let fileData;
         if (extension === 'pdf') {
-          const pdfjs = await import('pdfjs-dist/build/pdf.min.mjs');
-          pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+          const { extractPdfText } = await import('../capabilities/pdfExtraction.js');
           const arrayBuffer = await readFile(file, 'readAsArrayBuffer');
-          const pdf = await pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
-          if (pdf.numPages > FILE_LIMITS.maxPdfPages) throw new Error(`PDF exceeds the ${FILE_LIMITS.maxPdfPages}-page limit.`);
-          let textContent = '';
-          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
-            const page = await pdf.getPage(pageNum);
-            const text = await page.getTextContent();
-            textContent += `${text.items.map((item) => item.str).join(' ')}\n`;
-          }
-          const limited = limitExtractedText(textContent);
+          const limited = await extractPdfText(arrayBuffer);
           fileData = { name: file.name, type: file.type, content: limited.text, truncated: limited.truncated, isImage: false, isPdf: true };
         } else if (isImage) {
           const dataUrl = await readFile(file, 'readAsDataURL');
           let extractedText = '';
-          let ocrWorker = null;
-          let ocrTimer = null;
           try {
-            const Tesseract = await import('tesseract.js');
-            const recognition = (async () => {
-              ocrWorker = await Tesseract.createWorker('eng', 1, {
-                workerPath: ocrWorkerUrl,
-                workerBlobURL: false,
-                corePath: ocrCoreUrl,
-                langPath: OCR_LANGUAGE_PATH
-              });
-              return ocrWorker.recognize(dataUrl);
-            })();
-            const timeout = new Promise((_, reject) => {
-              ocrTimer = setTimeout(() => reject(new Error('OCR timed out after 45 seconds.')), 45_000);
-            });
-            const { data } = await Promise.race([recognition, timeout]);
-            extractedText = limitExtractedText(data?.text || '').text;
+            const { extractOcrText } = await import('../capabilities/ocrExtraction.js');
+            extractedText = await extractOcrText(dataUrl);
           } catch (error) {
             extractedText = `[OCR unavailable: ${error.message || 'processing failed'}]`;
-          } finally {
-            clearTimeout(ocrTimer);
-            await ocrWorker?.terminate().catch(() => {});
           }
           fileData = { name: file.name, type: file.type, content: dataUrl, extractedText, isImage: true, isPdf: false };
         } else {
+          const [{ parseStructuredFile, structuredRowsToText }, { analyzeRows }, { groupEmailRows }] = await Promise.all([
+            import('../capabilities/structuredData.js'),
+            import('../capabilities/dataAnalysis.js'),
+            import('../capabilities/emailGrouper.js')
+          ]);
           const arrayBuffer = extension === 'xlsx' ? await readFile(file, 'readAsArrayBuffer') : null;
           const text = extension === 'xlsx' ? '' : await readFile(file, 'readAsText');
           const rows = await parseStructuredFile({ name: file.name, text, arrayBuffer });
@@ -1309,9 +1275,11 @@ export default function Sidebar() {
     }
 
     let pluginContext = '';
-    const syntheticIdentity = (savedSettings.pluginNameGenerator || savedSettings.pluginAddressGenerator)
-      ? generateSyntheticIdentity()
-      : null;
+    let syntheticIdentity = null;
+    if (savedSettings.pluginNameGenerator || savedSettings.pluginAddressGenerator) {
+      const { generateSyntheticIdentity } = await import('../capabilities/generators.js');
+      syntheticIdentity = generateSyntheticIdentity();
+    }
     if (savedSettings.pluginNameGenerator) {
       pluginContext += `\n[Name Generator] Synthetic identity: ${syntheticIdentity.firstName} ${syntheticIdentity.lastName}. Treat it as synthetic test data.`;
     }
@@ -1333,13 +1301,17 @@ export default function Sidebar() {
     if (dataAnalysis) {
       pluginContext += "\n[CAPABILITY: Data Analysis Active] Analytical, computational, and structured dataset queries are prioritized.";
     }
+    const [analysisModule, emailModule] = await Promise.all([
+      dataAnalysis && uploadedFiles.some((file) => file.analysis) ? import('../capabilities/dataAnalysis.js') : Promise.resolve(null),
+      savedSettings.pluginEmailGrouper && uploadedFiles.some((file) => file.emailGroups?.length) ? import('../capabilities/emailGrouper.js') : Promise.resolve(null)
+    ]);
     const requestAttachments = uploadedFiles.map(f => {
         let contentToInject = f.content;
         if (f.isImage && f.extractedText) {
           contentToInject = `[Image OCR Extracted Text]:\n${f.extractedText}`;
         }
-        if (f.analysis && dataAnalysis) contentToInject += `\n\n[LOCAL DATA ANALYSIS]\n${formatAnalysis(f.analysis)}`;
-        if (f.emailGroups?.length && savedSettings.pluginEmailGrouper) contentToInject += `\n\n[LOCAL EMAIL GROUPS]\n${formatEmailGroups(f.emailGroups)}`;
+        if (f.analysis && dataAnalysis && analysisModule) contentToInject += `\n\n[LOCAL DATA ANALYSIS]\n${analysisModule.formatAnalysis(f.analysis)}`;
+        if (f.emailGroups?.length && savedSettings.pluginEmailGrouper && emailModule) contentToInject += `\n\n[LOCAL EMAIL GROUPS]\n${emailModule.formatEmailGroups(f.emailGroups)}`;
         return { name: f.name, content: contentToInject };
       }).filter(file => typeof file.content === 'string' && file.content.trim());
     if (requestAttachments.length > 0) {
@@ -2528,38 +2500,13 @@ return (
                             <a href={item.imageDataUrl} download="navix-generated-image.png" className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-3 py-2 text-[11px] font-medium text-blue-600 hover:bg-blue-50"><Download className="h-3.5 w-3.5" />Download image</a>
                           </div>
                         )}
-                        <ReactMarkdown
-                          components={{
-                            code({node, inline, className, children, ...props}) {
-                              const match = /language-(\w+)/.exec(className || '');
-                              return !inline && match ? (
-                                <SyntaxHighlighter
-                                  {...props}
-                                  children={String(children).replace(/\n$/, '')}
-                                  style={vscDarkPlus}
-                                  language={match[1]}
-                                  PreTag="div"
-                                  className="rounded-md !mt-2 !mb-2 !text-[12px]"
-                                />
-                              ) : (
-                                <code {...props} className={`${className} bg-slate-100 text-slate-800 px-1 py-0.5 rounded text-[12px] break-all`}>
-                                  {children}
-                                </code>
-                              );
-                            },
-                            a({ href, children }) {
-                              return isSafeRenderedUrl(href) ? <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">{children}</a> : <span title="Blocked unsafe link">{children}</span>;
-                            },
-                            img({ alt }) {
-                              return <span className="inline-flex rounded bg-amber-50 px-2 py-1 text-[10px] text-amber-700" title="Remote images are blocked to prevent tracking and data exfiltration">[Remote image blocked{alt ? `: ${alt}` : ''}]</span>;
-                            }
-                          }}
-                        >
-                          {item.text}
-                        </ReactMarkdown>
-                        {artifactsEnabled && extractArtifacts(item.text).length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">{extractArtifacts(item.text).map((artifact) => <button key={artifact.id} onClick={() => setCapabilityDrawer({ kind: 'artifact', ...artifact })} className="rounded-lg bg-teal-50 px-2 py-1 text-[10px] font-medium text-teal-700 hover:bg-teal-100">Open {artifact.language} artifact</button>)}</div>
-                        )}
+                        <Suspense fallback={<p className="whitespace-pre-wrap">{item.text}</p>}>
+                          <MarkdownContent
+                            text={item.text}
+                            artifactsEnabled={artifactsEnabled}
+                            onArtifactOpen={(artifact) => setCapabilityDrawer({ kind: 'artifact', ...artifact })}
+                          />
+                        </Suspense>
                       </div>
                       <div className="flex justify-end pt-1 mt-1 border-t border-slate-200/60">
                         <CopyButton text={item.text} />
@@ -3122,7 +3069,11 @@ return (
         onUnlock={unlockCredentialVault}
         onClose={credentialMode === 'encrypted' ? () => setShowVaultDialog(false) : null}
       />}
-      <CapabilityDrawer item={capabilityDrawer} onClose={() => setCapabilityDrawer(null)} />
+      {capabilityDrawer && (
+        <Suspense fallback={<div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/30" role="status">Loading capability…</div>}>
+          <CapabilityDrawer item={capabilityDrawer} onClose={() => setCapabilityDrawer(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }

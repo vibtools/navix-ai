@@ -10,7 +10,7 @@
 
 | Capability | Baseline status | Evidence/gap | Phase |
 | --- | --- | --- | --- |
-| Manifest V3 build | Verified | Deterministic build, manifest references, and self-contained content script pass | 01/04 gate |
+| Manifest V3 build | Verified | Deterministic build, manifest references, self-contained content script, and release-package validation pass | 01/04 complete |
 | Side-panel React UI | Verified | Declared entry builds | Regression each phase |
 | Settings persistence | Verified | Awaited serialized Chrome/IndexedDB/localStorage writes; focused success/failure/corruption/legacy tests pass | 01 complete |
 | Saved provider configs | Verified | Public records are secretless; credentials migrate to session storage or an optional PBKDF2/AES-GCM vault; legacy keys are scrubbed after migration | 03 complete |
@@ -43,11 +43,11 @@
 | Email grouper | Verified by focused tests | Local sender/domain/count/subject/latest grouping | 03 complete |
 | Risky-action confirmation | Verified by focused tests | Exact details, one-time allow/deny, request/session binding, TTL, replay rejection, and cancellation | 03/04 live gate |
 | Prompt-injection protection | Verified by focused tests | Trusted policy is separated from bounded, marked untrusted page/file content; external content cannot approve actions | 03/04 adversarial Chrome gate |
-| Unit/integration/E2E tests | Partial | 66 focused Node regression/contract tests pass; credentialed provider, OCR, and installed-Chrome E2E remain | 01-04 |
+| Unit/integration/E2E tests | Partial | 71 focused Node regression/contract tests and release checks pass; credentialed provider, OCR, accessibility, upgrade, and installed-Chrome E2E remain | 01-04 |
 | Real lint/type check | Verified | ESLint 10 gate passes source, scripts, server, and build configs | 01 complete |
-| Optimized extension artifact | Partial | Builds; composition/bundle need work | 04 |
-| Formal release | Missing | No tag/release | 04 |
+| Optimized extension artifact | Implemented, build/package-verified | Heavy modules are lazy-loaded; bundle budgets, extension-only ZIP contents, checksum, and release manifest pass; installed-Chrome operation remains | 04 |
+| Formal release | Release candidate | `v1.0.0.1.3` package/checks pass; approved tag/release and store validation remain | 04 |
 
 After every phase, affected rows must record new evidence, tests, limitations, and commit references. UI presence, compilation, or one successful API response is insufficient for **Verified**.
 
-Current completion count: **3 of 4 phases**. Phase 04 is the next approval-gated continuation point; production/release status remains **not ready**.
+Current completion count: **Phase 04 implementation complete; final production acceptance pending runtime evidence**. Release candidate `v1.0.0.1.3` is not yet a final production release.

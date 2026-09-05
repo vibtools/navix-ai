@@ -1,6 +1,7 @@
 {
   "name": "navix-ai",
-  "version": "1.0.0.1.2",
+  "version": "1.0.0.1.3",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +10,11 @@
     "start": "node dist/server.cjs",
     "lint": "eslint src scripts server.ts vite.config.js vite.content.config.js",
     "test": "node --test tests/*.test.js",
-    "check": "npm run lint && npm test && npm run build"
+    "check": "npm run lint && npm test && npm run build",
+    "package:extension": "node scripts/package-extension.mjs",
+    "verify:release": "node scripts/verify-release.mjs",
+    "smoke:server": "node scripts/smoke-server.mjs",
+    "release:check": "npm run check && npm run package:extension && npm run verify:release && npm run smoke:server"
   },
   "dependencies": {
     "@google/genai": "2.21.0",

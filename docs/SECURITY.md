@@ -1,6 +1,6 @@
 # Security
 
-> Phase 03 security root causes are implemented and focused-test verified. Production security acceptance is not complete until Phase 04 installed-Chrome, live-provider, upgrade, privacy, and release gates pass.
+> Phase 04 security implementation is included in release candidate `v1.0.0.1.3`: least privilege, consent, secret handling, untrusted-content boundaries, local OCR executable assets, and deterministic extension packaging are automated-gate verified. Final security acceptance still requires installed-Chrome, live-provider/OCR, upgrade, accessibility/privacy, and approved release evidence.
 
 ## Principles
 
@@ -42,4 +42,4 @@ Users should always know:
 - Provider errors use stable safe messages instead of upstream response bodies; malformed streams and empty responses cannot report success.
 - Tool names and argument schemas are validated before dispatch, stale-context refresh is bounded, and unverified navigation timeout is reported as failure.
 
-Remaining Phase 04 evidence: installed Chrome permission/action/injection testing; credentialed live provider and image requests; OCR runtime/network behavior; accessibility and privacy review; storage upgrade/restart/quota cases; performance budgets; signed package and release controls.
+Remaining release-candidate evidence: installed Chrome permission/action/injection testing; credentialed live provider and image requests; OCR runtime/network behavior; accessibility and privacy review; storage upgrade/restart/quota cases; store-package validation; and approved tag/release controls. Automated bundle budgets, extension-only packaging, checksum verification, and server smoke gates pass locally.

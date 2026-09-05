@@ -1,14 +1,29 @@
-name: Build Chrome Extension (Paused Until Phase 04)
+name: Build, verify, and release Navix AI
 
 on:
+  push:
+    branches:
+      - main
+      - phase-04-release-readiness
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: navix-ai-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-extension:
-    # Production-hardening governance lock: do not build or publish an
-    # extension artifact before Phase 04 release gates are approved.
-    if: ${{ false }}
+  quality:
+    name: Quality and release artifact
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -20,24 +35,75 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Build assets
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and contract tests
+        run: npm test
+
+      - name: Build extension and server separately
         run: npm run build
 
-      - name: Verify package structure
-        run: |
-          echo "Listing dist/ directory:"
-          ls -la dist/
-          
-          echo "Listing dist/src/ directory:"
-          ls -la dist/src/ || true
-          
-          echo "Checking manifest.json:"
-          test -f dist/manifest.json
+      - name: Package extension only
+        run: npm run package:extension
 
-      - name: Upload extension artifact
+      - name: Verify release artifact and budgets
+        run: npm run verify:release
+
+      - name: Production server smoke test
+        run: npm run smoke:server
+
+      - name: Upload extension release candidate
         uses: actions/upload-artifact@v4
         with:
-          name: navix-ai-extension
-          path: dist/
+          name: navix-ai-extension-release-candidate
+          path: |
+            release/*.zip
+            release/SHA256SUMS
+            release/release-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish tagged GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify tag matches product version
+        run: node scripts/verify-tag.mjs
+
+      - name: Download release candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: navix-ai-extension-release-candidate
+          path: release
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          gh release create "v${VERSION}" \
+            "release/navix-ai-v${VERSION}.zip#Navix AI Chrome extension" \
+            "release/SHA256SUMS#SHA-256 checksums" \
+            --verify-tag \
+            --title "Navix AI v${VERSION}" \
+            --notes-file RELEASE_NOTES.md

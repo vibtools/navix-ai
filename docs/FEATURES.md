@@ -2,7 +2,7 @@
 
 > This file states product goals, not completion evidence. Use [Actual Implementation Status](ACTUAL_IMPLEMENTATION_STATUS.md) for verified working, partial, prompt-only/demo, and missing capabilities. Production work is controlled by the [four-phase roadmap](PRODUCTION_ROADMAP.md).
 
-Phases 01-03 hardened the product without redesigning the existing UI/UX. Session/storage/cancellation integrity, deterministic gates, unified providers, exact sensitive-action approval, untrusted-content boundaries, credential lifecycle, least-privilege page access, consent, and real data/artifact/generator/email/image engines are implemented and focused-test verified. Installed-Chrome/live-provider/OCR E2E, performance, packaging, upgrade, and release acceptance remain Phase 04 work.
+Phases 01-04 harden the product without redesigning the existing UI/UX. Session/storage/cancellation integrity, deterministic gates, unified providers, exact sensitive-action approval, untrusted-content boundaries, credential lifecycle, least-privilege page access, consent, real data/artifact/generator/email/image engines, lazy loading, bundle budgets, and extension-only packaging are implemented and automated-gate verified. Installed-Chrome/live-provider/OCR E2E, accessibility, upgrade, and store/release acceptance remain final runtime gates for release candidate `v1.0.0.1.3`.
 
 ## Version 1 Goals
 

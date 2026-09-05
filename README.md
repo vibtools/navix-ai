@@ -8,7 +8,7 @@
 
 ## Production Hardening Status
 
-The verified `v1.0.0.1.2` baseline is in an approval-gated, four-phase production-hardening program. Phases 01, 02, and 03 are complete. The extension now has deterministic state/build contracts, unified Gemini/OpenAI/Hugging Face/Ollama execution, exact approval for sensitive browser actions, untrusted-content isolation, session/encrypted credential storage, least-privilege page access, explicit external-data consent, and real local/provider-backed capability engines. Production readiness has not yet been declared because Phase 04 performance, credentialed Chrome/provider E2E, packaging, and release gates remain. Extension build/ZIP artifact generation remains paused until the Phase 04 release gate.
+The `v1.0.0.1.3` release candidate is the Phase 04 implementation of the four-phase production-hardening program. It retains the existing UI/UX and now has lazy-loaded heavy capabilities, deterministic extension-only packaging, automated lint/test/build/security/release gates, synchronized privacy and release documentation, and restored CI artifact generation. Final production readiness is not yet declared: installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission acceptance still require a runtime environment and explicit release approval.
 
 Current feature truth, open findings, phase progress, and approval rules are maintained in the [documentation index](docs/DOCUMENTATION_INDEX.md).
 
@@ -61,7 +61,7 @@ Browser Extension (UI & Sidebar)
 ```
 
 ## 🛠️ Development Phase
-Phase 03 is complete. The next approval-gated continuation point is Phase 04 — performance, full QA, packaging, and release.
+Phase 04 implementation is complete as release candidate `v1.0.0.1.3`. Automated gates pass locally; final runtime acceptance and the approved tag/release remain pending.
 
 ## 📚 Production Documentation
 
@@ -73,4 +73,7 @@ Phase 03 is complete. The next approval-gated continuation point is Phase 04 —
 - [Error Handling Matrix](docs/ERROR_HANDLING_MATRIX.md)
 - [Production Traceability Matrix](docs/TRACEABILITY_MATRIX.md)
 - [Development Governance and Approval Gates](docs/DEVELOPMENT_GOVERNANCE.md)
+- [Phase 04 QA Matrix](docs/PHASE04_QA_MATRIX.md)
+- [Privacy](PRIVACY.md)
+- [Release Notes](RELEASE_NOTES.md)
 - [Changelog](CHANGELOG.md)

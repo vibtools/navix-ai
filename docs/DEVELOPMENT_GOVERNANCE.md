@@ -44,7 +44,7 @@
 
 ## Workflow freeze
 
-Extension build/ZIP generation stays strictly paused through Phases 01-03 and the implementation portion of Phase 04. Restore it only after Phase 04 release gates pass and final artifact generation is approved.
+Extension build/ZIP generation is restored for Phase 04 release-candidate validation behind the lint/test/build/audit/package/verify/smoke gates. Public artifact publication, tag creation, and final release remain blocked until runtime acceptance and explicit release approval.
 
 ## Approval command format
 

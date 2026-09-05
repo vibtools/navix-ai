@@ -12,11 +12,12 @@
 | `ACTUAL_IMPLEMENTATION_STATUS.md` | Working/partial/demo/missing truth register |
 | `TRACEABILITY_MATRIX.md` | Finding-to-phase-to-test mapping |
 | `DEVELOPMENT_GOVERNANCE.md` | Scope, approval, GitHub, regression, and release rules |
+| `PHASE04_QA_MATRIX.md` | Automated and manual release-candidate acceptance gates |
 
 ## Existing product documents
 
-`ARCHITECTURE.md`, `FEATURES.md`, `ROADMAP.md`, and `SECURITY.md` remain product documents and link to this control set.
+`ARCHITECTURE.md`, `FEATURES.md`, `ROADMAP.md`, and `SECURITY.md` remain product documents and link to this control set. `PRIVACY.md` and `RELEASE_NOTES.md` describe the release candidate’s data handling and distribution contract.
 
 Use `ACTUAL_IMPLEMENTATION_STATUS.md` for current feature truth, `PHASE_COMPLETION_LOG.md` for progress, and `PRODUCTION_ROADMAP.md` for future scope. A specification or roadmap entry is not implementation evidence.
 
-Last synchronized program event: **Phase 03 completion, 2026-09-05 UTC**.
+Last synchronized program event: **Phase 04 release-candidate implementation, 2026-09-05 UTC**.

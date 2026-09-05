@@ -2,7 +2,7 @@
 
 ## Executive verdict
 
-Navix AI is a buildable Manifest V3 browser assistant with shared Gemini/OpenAI/Hugging Face/Ollama execution, guarded browser tools, local persistence, and document/image/data capabilities. Phases 01-03 closed the scoped core-state, deterministic-build, provider, streaming, action-policy, trusted-content, secret-lifecycle, least-privilege, and prompt-only capability root causes. It is still not production-ready because installed-Chrome/live-provider/OCR E2E, accessibility/performance/upgrade/package evidence, repository hygiene, and release controls remain Phase 04 work.
+Navix AI is a buildable Manifest V3 browser assistant with shared Gemini/OpenAI/Hugging Face/Ollama execution, guarded browser tools, local persistence, and document/image/data capabilities. Phase 04 implementation is complete in release candidate `v1.0.0.1.3`: heavy modules are lazy-loaded, automated release gates pass, extension-only packaging is deterministic, and release/privacy documentation is synchronized. It is not yet a final production release because installed-Chrome/live-provider/OCR E2E, accessibility, upgrade, store validation, and explicit tag/release approval remain outstanding runtime gates.
 
 This report uses the official frozen baseline. Findings do not authorize implementation outside an approved phase.
 
@@ -24,7 +24,8 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 - Page context, navigation/search, click/type/Enter, screenshots, attachments, PDF extraction, OCR, and copy/history controls have implementation code.
 - Phase 01 now has exact dependency pins/lockfile, ESLint, 19 focused tests, self-contained content-script validation, and request-local session state.
 - Phase 02 provides one extension/server provider runner, buffered SSE, normalized provider errors/diagnostics, isolated fallback attempts, structured prompt/context inputs, and shared capability-aware browser tools.
-- Phase 03 adds exact action approval, target revalidation, explicit untrusted-content envelopes, session/encrypted credential storage, optional per-origin page permissions, external-data consent, and real structured-data/artifact/generator/email/image engines; the cumulative suite now contains 66 focused tests.
+- Phase 03 adds exact action approval, target revalidation, explicit untrusted-content envelopes, session/encrypted credential storage, optional per-origin page permissions, external-data consent, and real structured-data/artifact/generator/email/image engines.
+- Phase 04 adds on-demand PDF/OCR/Markdown/syntax/capability loading, deterministic extension-only ZIP packaging, checksums, release manifests, server smoke and tag checks, and synchronized license/privacy/QA/release documents; the cumulative suite now contains 71 focused tests.
 
 ## Findings register
 
@@ -36,7 +37,7 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 | F-004 | Medium | Cancellation is incomplete | Phase 01 root cause closed: abort reaches I/O, streams, retries, ports, web fallback, and tool waits; live E2E remains F-007 | 01/04 |
 | F-005 | Medium | Storage completion is ambiguous | Closed in Phase 01: serialized awaited writes and stable failures with legacy compatibility | 01 |
 | F-006 | High | Build is non-deterministic | Closed in Phase 01: exact direct pins, lockfile, and future workflow `npm ci` | 01 |
-| F-007 | High | Quality gates are absent | Phase 01-03 gates closed: lint, 66 tests, build-structure validation; full provider/Chrome/OCR E2E remains Phase 04 | 01/04 |
+| F-007 | High | Quality gates are absent | Automated Phase 04 gates closed: lint, 71 tests, build budgets, release-package verification, dependency audit, and server smoke; full provider/Chrome/OCR/accessibility/upgrade E2E remains | 01/04 |
 | F-008 | High | Provider logic is duplicated | Closed in Phase 02: extension/server use one registry, runner, adapters, prompt, error, retry, and fallback contract | 02 |
 | F-009 | High | OpenAI SSE parser is fragile | Closed in Phase 02: stateful every-boundary buffering; malformed events fail explicitly | 02 |
 | F-010 | High | Browser tools are Gemini-only | Closed in Phase 02: Gemini/OpenAI-compatible/Ollama tool calls share validation/execution; model limitations are explicit | 02 |
@@ -48,10 +49,10 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 | F-016 | High | Secrets stored as plaintext values | Root cause closed in Phase 03: secretless configs plus session/encrypted vault migration, relock and legacy scrub; upgrade/restart E2E remains F-007 | 03/04 |
 | F-017 | Medium | Permissions are broad | Root cause closed in Phase 03: required `tabs`/`<all_urls>`/static injection removed; active-tab or contextual optional origin used | 03/04 |
 | F-018 | High | Visible features are prompt-only/static | Root cause closed in Phase 03: image/artifact/data/generator/CSV/XLSX/email engines and focused tests added; live image/OCR E2E remains F-007 | 03/04 |
-| F-019 | Medium | Performance/package debt | >1 MB side-panel bundle; heavy eager modules; mixed server/extension output | 04 |
-| F-020 | Medium | Release governance missing | No tag/release/store validation or signed acceptance evidence | 04 |
-| F-021 | Medium | Documentation overstates behavior | Claims exceed verified provider/action capability | 01-04 |
-| F-022 | Low | Repository hygiene gaps | Debug/log files, empty icons, unused modules, and no license decision | 04 |
+| F-019 | Medium | Performance/package debt | Closed for implementation: side panel is 312.54 kB, heavy modules are lazy-loaded, budgets pass, and the ZIP excludes server/source-map output; installed runtime performance remains | 04 |
+| F-020 | Medium | Release governance missing | In progress: version/tag policy, gated CI, checksum/release manifest, and release notes exist; no final tag/release or store validation yet | 04 |
+| F-021 | Medium | Documentation overstates behavior | Controlled: README, architecture, features, security, privacy, QA, status, changelog, and release notes now state runtime limitations | 01-04 |
+| F-022 | Low | Repository hygiene gaps | Closed for implementation: tracked debug/dead/empty placeholder files removed and MIT license added | 04 |
 
 ## Production acceptance
 
@@ -70,4 +71,10 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 - No removal of providers, settings, history, attachments, OCR, or actions.
 - No compatibility identifier rename without tested migration.
 - No unrelated scope while production blockers remain.
-- No release artifact before Phase 04 acceptance.
+- No final production release before the remaining Phase 04 runtime acceptance and explicit release approval.
+
+## Phase 04 evidence
+
+The release candidate was built from the Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0` on `phase-04-release-readiness`. Local automated verification passed: ESLint, 71 Node tests, deterministic build and bundle budgets, offline production dependency audit, extension-only ZIP packaging, release/checksum verification, and server smoke. The candidate ZIP SHA-256 is `721ed373700fa5796828cce8627108f15807f1c1f4a996e13ef59a838ffd7875`.
+
+The remaining evidence is intentionally explicit: install and upgrade in Chrome, permission/action/injection flows on representative sites, credentialed live-provider and image requests, OCR recognition/network behavior, accessibility review, storage restart/quota behavior, store-package validation, and approved tag/release creation. No automated build result is treated as proof of those runtime checks.

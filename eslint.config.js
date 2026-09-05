@@ -14,6 +14,7 @@ export default [
         AbortController: 'readonly',
         AbortSignal: 'readonly',
         Blob: 'readonly',
+        Buffer: 'readonly',
         chrome: 'readonly',
         console: 'readonly',
         CustomEvent: 'readonly',

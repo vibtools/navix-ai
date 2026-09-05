@@ -9,7 +9,7 @@ Move the frozen Navix AI baseline to production readiness in exactly four contro
 | 01 | Deterministic Core and State Integrity | Stable build, sessions, storage, cancellation, selectors, and minimum quality gates | Completed — 2026-09-04 UTC |
 | 02 | Unified Providers and Agent Reliability | One provider contract, reliable streaming/errors, and capability-correct agent execution | Completed — 2026-09-04 UTC |
 | 03 | Security and Real Capability Completion | Safe actions, privacy/secret controls, prompt-injection defenses, and truthful features | Completed — 2026-09-05 UTC |
-| 04 | Performance, Full QA, and Release | Optimized package, full regression evidence, restored build workflow, versioned release | Pending |
+| 04 | Performance, Full QA, and Release | Optimized package, full regression evidence, restored build workflow, versioned release | Implementation complete — release candidate; runtime acceptance pending |
 
 ## Phase 01 — Deterministic Core and State Integrity
 
@@ -102,6 +102,35 @@ Phase 03 closed the scoped root causes in F-013 through F-018. Risk/action, appr
 ### Exit criteria
 
 All baseline/approved features pass; no Critical/High finding remains; budgets and stability pass; artifact installs/operates; documents agree; workflow is restored with test gates; final artifact/tag/release are approved.
+
+## Phase 04 implementation record
+
+The Phase 04 implementation started from the Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0` on the isolated `phase-04-release-readiness` branch. This record covers the release-candidate implementation; it does not claim final production approval before the remaining runtime gates are executed.
+
+Implemented and verified:
+
+- Split PDF/OCR extraction, Markdown/syntax rendering, and optional capability modules into on-demand chunks while preserving the existing UI and feature controls.
+- Removed tracked debug/dead files and empty icon placeholders; separated extension ZIP contents from the server bundle and source maps.
+- Added MIT licensing, privacy disclosures, release notes, the Phase 04 QA matrix, deterministic ZIP/checksum/release-manifest generation, release verification, server smoke testing, version/tag checks, and restored gated CI.
+- Bumped the release-candidate package version to `1.0.0.1.3`; the Chrome manifest remains compatible at `1.0.0.2` with `version_name` `v1.0.0.1.3`.
+
+Verification evidence:
+
+| Gate | Result |
+| --- | --- |
+| `npm run lint` | Pass — 0 errors |
+| `npm test` | Pass — 71/71 focused regression/contract tests |
+| `npm run build` | Pass — side panel 312.54 kB; PDF/OCR local assets and content-script structure verified |
+| `npm audit --offline --omit=dev --audit-level=high` | Pass — 0 known vulnerabilities in installed production resolution |
+| `npm run package:extension` | Pass — 45 extension files; deterministic ZIP generated |
+| `npm run verify:release` | Pass — ZIP contents, manifest/version, exclusions, checksum, and release manifest verified |
+| `npm run smoke:server` | Pass — HTTP 200 and safe missing-credential failure |
+
+Release-candidate digest: `721ed373700fa5796828cce8627108f15807f1c1f4a996e13ef59a838ffd7875`.
+
+Remaining acceptance: installed Chrome permission/action/injection flows, credentialed live-provider and image requests, OCR recognition/network behavior, accessibility, upgrade/restart/quota behavior, store-package validation, and explicit tag/release approval. No final tag or GitHub release is claimed by this implementation record.
+
+Rollback reference: the Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0`.
 
 ## Transition rule
 

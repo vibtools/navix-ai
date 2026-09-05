@@ -1,8 +1,8 @@
 node_modules/
 dist/
 coverage/
+release/
 *.log
 .env
 .env.*
 !.env.example
-
