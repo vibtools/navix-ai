@@ -1,7 +1,22 @@
 export const INTERACTIVE_SELECTOR = 'a, button, input, textarea, select, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])';
 
+export function queryInteractiveElements(root = document) {
+  const elements = [];
+  const pending = [root];
+  while (pending.length) {
+    const current = pending.shift();
+    if (!current?.querySelectorAll) continue;
+    const matches = [...current.querySelectorAll(INTERACTIVE_SELECTOR)];
+    elements.push(...matches);
+    for (const element of current.querySelectorAll('*')) {
+      if (element.shadowRoot) pending.push(element.shadowRoot);
+    }
+  }
+  return elements;
+}
+
 export function ensureUniqueInteractiveIds(root = document) {
-  const elements = Array.from(root.querySelectorAll(INTERACTIVE_SELECTOR));
+  const elements = queryInteractiveElements(root);
   const used = new Set();
   const needsId = [];
   let maximumId = 0;
@@ -28,4 +43,3 @@ export function ensureUniqueInteractiveIds(root = document) {
 
   return elements.length;
 }
-

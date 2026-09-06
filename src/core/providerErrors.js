@@ -57,5 +57,9 @@ export function canRetryProviderError(error) {
 }
 
 export function canFallbackProviderError(error, emittedOutput) {
-  return !emittedOutput && canRetryProviderError(error);
+  return !emittedOutput && (
+    canRetryProviderError(error) ||
+    error?.code === ErrorCode.PROVIDER_MODEL_UNSUPPORTED ||
+    error?.code === ErrorCode.PROVIDER_CAPABILITY_UNSUPPORTED
+  );
 }

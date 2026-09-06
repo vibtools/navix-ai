@@ -31,7 +31,7 @@ export const BROWSER_TOOL_DEFINITIONS = Object.freeze([
     type: 'function',
     function: {
       name: 'read_page',
-      description: 'Read visible text from the active page.',
+      description: 'Read a compressed Website Intelligence JSON map with visible content, semantic sections, forms, actions, visual bounds, and an accessibility tree from the active page.',
       parameters: { type: 'object', properties: {}, additionalProperties: false }
     }
   },
@@ -52,7 +52,7 @@ export const BROWSER_TOOL_DEFINITIONS = Object.freeze([
     type: 'function',
     function: {
       name: 'type_text',
-      description: 'Type text into an input using a CSS or data-ai-id selector.',
+      description: 'Set a text, textarea, contenteditable, or select value using a CSS or data-ai-id selector.',
       parameters: {
         type: 'object',
         properties: {

@@ -6,6 +6,8 @@ import { CredentialVault, collectLegacyCredentials, credentialsFromConfigs, hydr
 import { ACTION_DECISION, ACTION_CONFIRMATION } from '../core/confirmationProtocol.js';
 import { IMAGE_CANCEL_REQUEST, IMAGE_GENERATE_REQUEST } from '../capabilities/imageGeneration.js';
 import { validateUploadBatch } from '../core/filePolicy.js';
+import { enabledModelConfigs, isPrimaryModelConfig, providerSelectionUpdates, selectPrimaryModelConfig, toggleModelConfig } from '../core/modelConfiguration.js';
+import { inspectActiveSiteAccess, requestSiteAccess } from '../core/sitePermissions.js';
 import { ActionConfirmationDialog, CredentialVaultDialog } from './SecurityDialogs.jsx';
 
 const MarkdownContent = lazy(() => import('./MarkdownContent.jsx'));
@@ -36,12 +38,15 @@ function resolvePrimaryProviderAttempt(settings, configs = []) {
     : provider === 'openai' ? settings.openAiModel
       : provider === 'huggingface' ? settings.hfModel
         : settings.ollamaModel;
-  const activeConfig = configs.find((config) => config.isActive && config.provider === provider)
-    || configs.find((config) => config.provider === provider && config.model === selectedModel);
-  return toProviderAttempt(activeConfig) || providerAttemptFromSettings(settings, provider);
+  const exactConfig = configs.find((config) => config.provider === provider && config.model === selectedModel);
+  const settingsAttempt = providerAttemptFromSettings(settings, provider);
+  const activeConfig = configs.find((config) => config.isActive && config.provider === provider);
+  return toProviderAttempt(exactConfig) || (settingsAttempt?.apiKey || settingsAttempt?.baseUrl ? settingsAttempt : null)
+    || toProviderAttempt(activeConfig)
+    || toProviderAttempt(enabledModelConfigs(configs)[0]);
 }
 
-const CopyButton = ({ text }) => {
+const CopyButton = ({ text, title = 'Copy' }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -68,7 +73,7 @@ const CopyButton = ({ text }) => {
     <button
       onClick={handleCopy}
       className="flex items-center gap-1.5 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded transition-colors self-start"
-      title="Copy response"
+      title={title}
     >
       {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
     </button>
@@ -193,7 +198,6 @@ export default function Sidebar() {
   });
   
   // API Keys & Config (Draft state for inputs)
-  const [selectedModel, setSelectedModel] = useState('gemini');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiModel, setGeminiModel] = useState('gemini-2.5-flash');
   
@@ -239,6 +243,9 @@ export default function Sidebar() {
   const [vaultError, setVaultError] = useState('');
   const [showVaultDialog, setShowVaultDialog] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
+  const [siteAccess, setSiteAccess] = useState({ supported: false, granted: false, allSites: false, url: '', origin: '', pattern: '' });
+  const [siteAccessBusy, setSiteAccessBusy] = useState(false);
+  const [siteAccessError, setSiteAccessError] = useState('');
   
   const [testStatus, setTestStatus] = useState('idle');
   const [testMessage, setTestMessage] = useState('');
@@ -278,14 +285,15 @@ export default function Sidebar() {
   };
   
   const [geminiModelList, setGeminiModelList] = useState([
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
     'gemini-2.5-flash',
     'gemini-2.5-pro',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro',
-    'gemini-1.0-pro'
+    'gemini-2.5-flash-lite'
   ]);
   const [isSyncingGemini, setIsSyncingGemini] = useState(false);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
@@ -308,6 +316,48 @@ export default function Sidebar() {
   const textareaRef = useRef(null);
   const credentialsRef = useRef({});
 
+  const refreshSiteAccess = async () => {
+    try {
+      const access = await inspectActiveSiteAccess();
+      setSiteAccess(access);
+      setSiteAccessError('');
+      return access;
+    } catch (error) {
+      setSiteAccessError(error.message || 'Unable to inspect page access.');
+      return null;
+    }
+  };
+
+  const grantSiteAccess = async (allSites) => {
+    if (!siteAccess.pattern || siteAccessBusy) return;
+    setSiteAccessBusy(true);
+    setSiteAccessError('');
+    try {
+      const granted = await requestSiteAccess({ pattern: siteAccess.pattern, allSites });
+      if (!granted) throw new Error('Page access was not allowed.');
+      await refreshSiteAccess();
+    } catch (error) {
+      setSiteAccessError(error.message || 'Unable to grant page access.');
+    } finally {
+      setSiteAccessBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!(typeof chrome !== 'undefined' && chrome.runtime?.id)) return undefined;
+    refreshSiteAccess();
+    const onActivated = () => refreshSiteAccess();
+    const onUpdated = (_tabId, changeInfo) => {
+      if (changeInfo.status === 'complete' || changeInfo.url) refreshSiteAccess();
+    };
+    chrome.tabs?.onActivated?.addListener(onActivated);
+    chrome.tabs?.onUpdated?.addListener(onUpdated);
+    return () => {
+      chrome.tabs?.onActivated?.removeListener(onActivated);
+      chrome.tabs?.onUpdated?.removeListener(onUpdated);
+    };
+  }, []);
+
   useEffect(() => {
     AppStorage.get([
       'geminiApiKey', 'geminiModel', 'cachedGeminiModels',
@@ -327,7 +377,6 @@ export default function Sidebar() {
       setCredentialMode(vaultState.mode);
       if (result.privacyConsent !== undefined) setPrivacyConsent(Boolean(result.privacyConsent));
       if (result.cachedGeminiModels) setGeminiModelList(result.cachedGeminiModels);
-      if (result.selectedModel) setSelectedModel(result.selectedModel);
 
       // Build active configurations from storage or migrate from existing keys
       let configs = result.activeConfigs;
@@ -484,7 +533,6 @@ export default function Sidebar() {
       }
       setSavedSettings(prev => ({ ...prev, ...changes }));
       if (changes.activeConfigs !== undefined) setActiveConfigs(hydrateProviderConfigs(changes.activeConfigs, credentialsRef.current));
-      if (changes.selectedModel !== undefined) setSelectedModel(changes.selectedModel);
       if (changes.systemPrompt !== undefined) setSystemPrompt(changes.systemPrompt);
       if (changes.customInstruction !== undefined) setCustomInstruction(changes.customInstruction);
       if (changes.tabSummaryInstruction !== undefined) setTabSummaryInstruction(changes.tabSummaryInstruction);
@@ -767,41 +815,29 @@ export default function Sidebar() {
   };
 
   const handleActivateConfig = async (configId) => {
-    const updated = activeConfigs.map(c => ({
-      ...c,
-      isActive: c.id === configId
-    }));
-    setActiveConfigs(updated);
-    const target = updated.find(c => c.id === configId);
-    if (target) {
-      setSelectedModel(target.provider);
-      const updates = {
-        selectedModel: target.provider
-      };
-      if (target.provider === 'gemini') {
-        updates.geminiModel = target.model;
-      } else if (target.provider === 'openai') {
-        updates.openAiModel = target.model;
-      } else if (target.provider === 'huggingface') {
-        updates.hfModel = target.model;
-      } else if (target.provider === 'ollama') {
-        updates.ollamaUrl = target.url;
-        updates.ollamaModel = target.model;
-      }
-      await AppStorage.set({ ...updates, activeConfigs: publicProviderConfigs(updated) });
+    setActionLoading({ provider: configId, action: 'activate' });
+    try {
+      const updated = toggleModelConfig(activeConfigs, configId);
+      const currentPrimary = updated.find((config) => config.isActive && isPrimaryModelConfig(config, savedSettings));
+      const nextPrimary = currentPrimary || enabledModelConfigs(updated)[0] || null;
+      const updates = nextPrimary ? providerSelectionUpdates(nextPrimary) : { selectedModel: '' };
+      const result = await AppStorage.set({ ...updates, activeConfigs: publicProviderConfigs(updated) });
+      if (!result.ok) throw new Error(result.error?.message || 'Unable to update active models.');
+      setActiveConfigs(updated);
+    } catch (error) {
+      setTestStatus('error');
+      setTestMessage(error.message || 'Unable to update active models.');
+    } finally {
+      setActionLoading({ provider: null, action: null });
     }
   };
 
   const handleDropdownSelect = async (provider, model) => {
     let target = activeConfigs.find(c => c.provider === provider && c.model === model);
-    if (!target) {
-       target = activeConfigs.find(c => c.provider === provider);
-    }
     
     if (target) {
-      const updated = activeConfigs.map(c => ({ ...c, isActive: c.id === target.id }));
+      const updated = selectPrimaryModelConfig(activeConfigs, target.id);
       setActiveConfigs(updated);
-      setSelectedModel(provider);
       const updates = { activeConfigs: publicProviderConfigs(updated), selectedModel: provider };
       
       if (provider === 'gemini') {
@@ -820,7 +856,6 @@ export default function Sidebar() {
       }
       await AppStorage.set(updates);
     } else {
-      setSelectedModel(provider);
       const updates = { selectedModel: provider };
       if (provider === 'gemini') { setGeminiModel(model); updates.geminiModel = model; }
       else if (provider === 'openai') { setOpenAiModel(model); updates.openAiModel = model; }
@@ -837,16 +872,13 @@ export default function Sidebar() {
       clearCurrentForm();
     }
     const updates = {};
-    const wasActive = activeConfigs.find(c => c.id === configId)?.isActive;
-    if (wasActive) {
+    const removed = activeConfigs.find(c => c.id === configId);
+    const wasPrimary = isPrimaryModelConfig(removed, savedSettings);
+    if (wasPrimary) {
       if (updated.length > 0) {
-        updated[0].isActive = true;
-        const next = updated[0];
-        updates.selectedModel = next.provider;
-        if (next.provider === 'gemini') { updates.geminiModel = next.model; }
-        else if (next.provider === 'openai') { updates.openAiModel = next.model; }
-        else if (next.provider === 'huggingface') { updates.hfModel = next.model; }
-        else if (next.provider === 'ollama') { updates.ollamaModel = next.model; updates.ollamaUrl = next.url; }
+        const next = enabledModelConfigs(updated)[0] || updated[0];
+        next.isActive = true;
+        Object.assign(updates, providerSelectionUpdates(next));
       } else {
         updates.selectedModel = '';
       }
@@ -1094,7 +1126,7 @@ export default function Sidebar() {
     setChat(prev => {
       const next = [...prev];
       if (next.length > 0 && next[next.length - 1].role === 'assistant') {
-        next[next.length - 1].status = '';
+        next[next.length - 1] = { ...next[next.length - 1], status: '' };
       }
       return next;
     });
@@ -1177,6 +1209,27 @@ export default function Sidebar() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const editPrompt = (text) => {
+    setMessage(text);
+    globalThis.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      if (textareaRef.current) {
+        textareaRef.current.style.height = '64px';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      }
+    });
+  };
+
+  const retryMessageAt = (index) => {
+    if (loading) return;
+    for (let position = index; position >= 0; position -= 1) {
+      if (chat[position]?.role === 'user' && chat[position].text) {
+        sendMessage(chat[position].text);
+        return;
+      }
+    }
+  };
+
   const handleSummarizePage = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     sendMessage(tabSummaryInstruction, true);
@@ -1188,6 +1241,7 @@ export default function Sidebar() {
     
     const userMessage = (actualOverrideMessage || message).trim();
     if (!userMessage || loading) return;
+    const pageContextRequired = includeContext || forceContext || includeScreenshot;
 
     // Validation based on selected model (using truth settings)
     const isConfigured = () => {
@@ -1218,9 +1272,24 @@ export default function Sidebar() {
       await AppStorage.set({ currentSessionId: requestSessionId });
     }
 
+    const requestId = createRequestId();
+    const userMessageId = createRequestId();
+    const updateAssistant = (updates) => {
+      setChat((items) => items.map((item) => item.requestId === requestId && item.role === 'assistant'
+        ? { ...item, ...(typeof updates === 'function' ? updates(item) : updates) }
+        : item));
+    };
+
     setChat((items) => [
       ...items,
-      { role: 'user', text: userMessage }
+      { id: userMessageId, role: 'user', text: userMessage },
+      {
+        id: requestId,
+        requestId,
+        role: 'assistant',
+        text: '',
+        status: pageContextRequired ? 'Reading the active page…' : 'Preparing the request…'
+      }
     ]);
 
     if (!actualOverrideMessage) setMessage('');
@@ -1228,49 +1297,32 @@ export default function Sidebar() {
 
     let domContext = '';
 
-    if (includeContext || forceContext) {
-      if (typeof chrome !== 'undefined' && chrome.tabs) {
+    if (pageContextRequired) {
+      if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
         try {
-          // Try to fetch context from the active tab if running as a Chrome Extension
-          const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (activeTab && activeTab.id) {
-            const requestContext = () => new Promise((resolve, reject) => {
-              chrome.tabs.sendMessage(activeTab.id, { action: 'get_page_context' }, (response) => {
-                if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-                else resolve(response);
-              });
-            });
-            let contextResponse;
-            try {
-              contextResponse = await requestContext();
-            } catch {
-              try {
-                await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, files: ['src/content.js'] });
-                contextResponse = await requestContext();
-              } catch (injectionError) {
-                const url = activeTab.url ? new URL(activeTab.url) : null;
-                if (url && ['http:', 'https:'].includes(url.protocol) && chrome.permissions) {
-                  const origin = `${url.origin}/*`;
-                  const granted = await chrome.permissions.request({ origins: [origin] });
-                  if (granted) {
-                    await chrome.scripting.executeScript({ target: { tabId: activeTab.id }, files: ['src/content.js'] });
-                    contextResponse = await requestContext();
-                  }
-                }
-                if (!contextResponse) throw injectionError;
-              }
-            }
-            
-            if (contextResponse && contextResponse.text) {
-              domContext = `URL: ${contextResponse.url}\nTitle: ${contextResponse.title}\n\nContent:\n${contextResponse.text}`;
-            }
+          const contextResponse = await chrome.runtime.sendMessage({ type: 'NAVIX_PAGE_CONTEXT_REQUEST' });
+          if (!contextResponse?.success || !contextResponse.text) {
+            const error = new Error(contextResponse?.error || 'The active page did not return readable content.');
+            error.code = contextResponse?.code;
+            throw error;
           }
+          domContext = `Website Intelligence JSON:\n${contextResponse.text}`;
+          updateAssistant({ status: 'Website structure and accessibility mapped…' });
         } catch (err) {
-          console.warn("Error querying active tab. Continuing without context.", err);
+          await refreshSiteAccess();
+          updateAssistant({
+            text: err.code === 'PERMISSION_REQUIRED'
+              ? '**Page access required.** Use **Allow This Site** or **Allow All Sites** above, then retry this prompt.'
+              : `**Page reading error:** ${err.message || 'Unable to read the active page.'}`,
+            status: ''
+          });
+          setLoading(false);
+          return;
         }
       } else {
-        // Fallback for AI Studio Web Preview environment
-        domContext = `URL: https://example.com/mock-page\nTitle: Mock Example Page\n\nContent:\nThis is simulated page content. The extension is running as a web application preview. The text extraction and summarization feature works successfully by extracting this simulated text context.`;
+        updateAssistant({ text: '**Page reading is available only in the installed Chrome extension.**', status: '' });
+        setLoading(false);
+        return;
       }
     }
 
@@ -1324,7 +1376,7 @@ export default function Sidebar() {
 
     if (autoModelSwitch && activeConfigs && activeConfigs.length > 0) {
       const primaryIdentity = `${primaryAttempt?.provider || ''}\u0000${primaryAttempt?.modelId || ''}`;
-      activeConfigs.forEach((config) => {
+      enabledModelConfigs(activeConfigs).forEach((config) => {
         const fallback = toProviderAttempt(config);
         if (!fallback) return;
         const identity = `${fallback.provider}\u0000${fallback.modelId}`;
@@ -1333,25 +1385,17 @@ export default function Sidebar() {
     }
 
     if (imageGenEnabled) {
-      setChat((items) => [...items, { role: 'assistant', text: '', status: `Generating with ${imageGenModel}...` }]);
+      updateAssistant({ status: `Generating with ${imageGenModel}…` });
       try {
         if (!(typeof chrome !== 'undefined' && chrome.runtime?.id)) throw new Error('Image generation is available in the installed extension.');
-        const imageRequestId = createRequestId();
+        const imageRequestId = requestId;
         imageRequestIdRef.current = imageRequestId;
         const response = await chrome.runtime.sendMessage({ type: IMAGE_GENERATE_REQUEST, requestId: imageRequestId, prompt: userMessage, imageModel: imageGenModel, attempt: primaryAttempt });
         if (!response?.success) throw new Error(response?.error?.message || 'Image generation failed.');
         const imageDataUrl = `data:${response.result.mimeType};base64,${response.result.data}`;
-        setChat((items) => {
-          const next = [...items];
-          next[next.length - 1] = { role: 'assistant', text: `Generated with ${imageGenModel}.`, status: '', imageDataUrl };
-          return next;
-        });
+        updateAssistant({ text: `Generated with ${imageGenModel}.`, status: '', imageDataUrl });
       } catch (error) {
-        setChat((items) => {
-          const next = [...items];
-          next[next.length - 1] = { role: 'assistant', text: `**⚠️ Image generation error:** ${error.message}`, status: '' };
-          return next;
-        });
+        updateAssistant({ text: `**⚠️ Image generation error:** ${error.message}`, status: '' });
       } finally {
         imageRequestIdRef.current = null;
         setLoading(false);
@@ -1359,10 +1403,7 @@ export default function Sidebar() {
       return;
     }
 
-    setChat((items) => [...items, { role: 'assistant', text: '', status: '' }]);
-
     const executeRequest = () => {
-      const requestId = createRequestId();
       const payloadObj = {
         message: userMessage,
         chatHistory: chat,
@@ -1384,16 +1425,10 @@ export default function Sidebar() {
       };
 
       const handleError = (errorMsg) => {
-        setChat(prev => {
-          const next = [...prev];
-          if (next[next.length - 1].text) {
-            next[next.length - 1].text += `\n\n**⚠️ Error:** ${errorMsg}`;
-          } else {
-            next[next.length - 1].text = `**⚠️ Error:** ${errorMsg}`;
-          }
-          next[next.length - 1].status = '';
-          return next;
-        });
+        updateAssistant((item) => ({
+          text: item.text ? `${item.text}\n\n**⚠️ Error:** ${errorMsg}` : `**⚠️ Error:** ${errorMsg}`,
+          status: ''
+        }));
         setLoading(false);
       };
 
@@ -1407,11 +1442,7 @@ export default function Sidebar() {
             if (msg.requestId && msg.requestId !== requestId) return;
             if (msg.type === ACTION_CONFIRMATION && msg.confirmation) {
               setPendingConfirmation(msg.confirmation);
-              setChat(prev => {
-                const next = [...prev];
-                next[next.length - 1].status = 'Waiting for action approval';
-                return next;
-              });
+              updateAssistant({ status: 'Waiting for action approval…' });
             } else if (msg.error) {
               receivedError = true;
               let errorMsg = typeof msg.error === 'object' ? (msg.error.message || JSON.stringify(msg.error)) : String(msg.error);
@@ -1424,25 +1455,12 @@ export default function Sidebar() {
               if (portRef.current === streamPort) portRef.current = null;
               handleError(errorMsg);
             } else if (msg.status) {
-              setChat(prev => {
-                const next = [...prev];
-                next[next.length - 1].status = msg.status;
-                return next;
-              });
+              updateAssistant({ status: msg.status });
             } else if (msg.chunk) {
-              setChat(prev => {
-                const next = [...prev];
-                next[next.length - 1].text += msg.chunk;
-                next[next.length - 1].status = ''; // clear status when getting text
-                return next;
-              });
+              updateAssistant((item) => ({ text: `${item.text || ''}${msg.chunk}`, status: 'Writing response…' }));
             } else if (msg.done) {
               if (receivedError) return;
-              setChat(prev => {
-                const next = [...prev];
-                next[next.length - 1].status = '';
-                return next;
-              });
+              updateAssistant({ status: '' });
               setLoading(false);
               streamPort.disconnect();
               if (portRef.current === streamPort) {
@@ -1456,13 +1474,7 @@ export default function Sidebar() {
             portRef.current = null;
             setPendingConfirmation(null);
             setLoading(false);
-            setChat(prev => {
-              const next = [...prev];
-              if (next.length > 0 && next[next.length - 1].role === 'assistant') {
-                next[next.length - 1].status = '';
-              }
-              return next;
-            });
+            updateAssistant({ status: '' });
           });
 
           streamPort.postMessage({ type: 'AI_CHAT_REQUEST', ...payloadObj });
@@ -1494,16 +1506,13 @@ export default function Sidebar() {
               const { done, value } = await reader.read();
               if (done) {
                 setLoading(false);
+                updateAssistant({ status: '' });
                 if (abortControllerRef.current === controller) abortControllerRef.current = null;
                 break;
               }
               const chunkStr = decoder.decode(value, { stream: true });
               
-              setChat(prev => {
-                const next = [...prev];
-                next[next.length - 1].text += chunkStr;
-                return next;
-              });
+              updateAssistant((item) => ({ text: `${item.text || ''}${chunkStr}`, status: 'Writing response…' }));
             }
           } catch (error) {
              if (error.name === 'AbortError') return;
@@ -1521,6 +1530,7 @@ export default function Sidebar() {
       }
     };
 
+    updateAssistant({ status: includeScreenshot ? 'Preparing page, accessibility, and screenshot context…' : 'Contacting the selected AI model…' });
     executeRequest();
   }
 
@@ -1813,12 +1823,8 @@ export default function Sidebar() {
                       <tbody className="text-[12px]">
                         {activeConfigs.length > 0 ? (
                           activeConfigs.map(config => {
-                            const isCurrentActive = (savedSettings.selectedModel === config.provider && (
-                              config.provider === 'gemini' ? savedSettings.geminiModel === config.model :
-                              config.provider === 'openai' ? savedSettings.openAiModel === config.model :
-                              config.provider === 'huggingface' ? savedSettings.hfModel === config.model :
-                              savedSettings.ollamaModel === config.model
-                            )) || config.isActive;
+                            const isEnabled = Boolean(config.isActive);
+                            const isPrimary = isPrimaryModelConfig(config, savedSettings);
 
                             return (
                               <tr key={config.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 group">
@@ -1828,11 +1834,12 @@ export default function Sidebar() {
                                   {config.provider === 'huggingface' && <Box className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                                   {config.provider === 'ollama' && <Server className="w-3.5 h-3.5 text-slate-500 shrink-0" />}
                                   <span className="capitalize">{config.provider === 'huggingface' ? 'HuggingFace' : config.provider}</span>
-                                  {isCurrentActive && (
+                                  {isEnabled && (
                                     <span className="text-[9px] bg-emerald-100 text-emerald-700 font-semibold px-1.5 py-0.5 rounded-full ml-1 leading-none">
-                                      Active
+                                      Enabled
                                     </span>
                                   )}
+                                  {isPrimary && <span className="text-[9px] bg-blue-100 text-blue-700 font-semibold px-1.5 py-0.5 rounded-full leading-none">Primary</span>}
                                 </td>
                                 <td className="px-3 py-2.5 text-slate-600 truncate max-w-[140px] font-mono text-[11px]">
                                   {config.model}
@@ -1841,8 +1848,9 @@ export default function Sidebar() {
                                   <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                                     <button 
                                       onClick={() => handleActivateConfig(config.id)} 
-                                      title={isCurrentActive ? "Active" : "Set as Active Model"} 
-                                      className={`p-1 rounded-md transition-colors ${isCurrentActive ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                                      title={isEnabled ? "Disable fallback model" : "Enable model"}
+                                      aria-pressed={isEnabled}
+                                      className={`p-1 rounded-md transition-colors ${isEnabled ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
                                     >
                                       {actionLoading.provider === config.id && actionLoading.action === 'activate' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                                     </button>
@@ -2006,10 +2014,6 @@ export default function Sidebar() {
                     <Download className="w-3.5 h-3.5" />
                     Export Chat History
                   </button>
-                </div>
-                
-                <div className="pt-4 mt-4 border-t border-slate-100 text-center">
-                  <span className="text-[11px] text-slate-400 italic">More features coming soon...</span>
                 </div>
               </div>
             )}
@@ -2449,6 +2453,22 @@ return (
         </div>
       </header>
 
+      {siteAccess.supported && !siteAccess.granted && (
+        <div className="border-b border-amber-200 bg-amber-50 px-3 py-2" role="region" aria-label="Page access required">
+          <div className="flex items-start gap-2">
+            <Globe className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-semibold text-amber-900">Allow Navix AI to read {siteAccess.origin}</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => grantSiteAccess(false)} disabled={siteAccessBusy} className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[10px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Allow This Site</button>
+                <button type="button" onClick={() => grantSiteAccess(true)} disabled={siteAccessBusy} className="rounded-md bg-amber-700 px-2 py-1 text-[10px] font-semibold text-white hover:bg-amber-800 disabled:opacity-50">Allow All Sites</button>
+              </div>
+              {siteAccessError && <p className="mt-1 text-[10px] text-red-700">{siteAccessError}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat Area */}
       <div 
         ref={scrollRef}
@@ -2464,7 +2484,7 @@ return (
         )}
         
         {chat.map((item, index) => (
-          <div key={index} className={`flex gap-2.5 text-[13px] leading-relaxed ${item.role === 'user' ? 'flex-row-reverse' : ''}`}>
+          <div key={item.id || `${item.role}-${index}`} className={`flex gap-2.5 text-[13px] leading-relaxed ${item.role === 'user' ? 'flex-row-reverse' : ''}`}>
             {/* Avatar */}
             <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-1 ${
               item.role === 'user' 
@@ -2490,7 +2510,14 @@ return (
                     : 'bg-slate-50 border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm'
                 }`}>
                   {item.role === 'user' ? (
-                    item.text
+                    <div className="flex flex-col gap-1.5">
+                      <span>{item.text}</span>
+                      <div className="flex justify-end gap-0.5 border-t border-white/10 pt-1">
+                        <CopyButton text={item.text} title="Copy prompt" />
+                        <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => editPrompt(item.text)} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" title="Edit prompt"><Pencil className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex flex-col gap-1.5">
                       <div className="markdown-body text-[13px]">
@@ -2500,16 +2527,19 @@ return (
                             <a href={item.imageDataUrl} download="navix-generated-image.png" className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-3 py-2 text-[11px] font-medium text-blue-600 hover:bg-blue-50"><Download className="h-3.5 w-3.5" />Download image</a>
                           </div>
                         )}
-                        <Suspense fallback={<p className="whitespace-pre-wrap">{item.text}</p>}>
-                          <MarkdownContent
-                            text={item.text}
-                            artifactsEnabled={artifactsEnabled}
-                            onArtifactOpen={(artifact) => setCapabilityDrawer({ kind: 'artifact', ...artifact })}
-                          />
-                        </Suspense>
+                        {item.status ? <p className="whitespace-pre-wrap">{item.text}</p> : (
+                          <Suspense fallback={<p className="whitespace-pre-wrap">{item.text}</p>}>
+                            <MarkdownContent
+                              text={item.text}
+                              artifactsEnabled={artifactsEnabled}
+                              onArtifactOpen={(artifact) => setCapabilityDrawer({ kind: 'artifact', ...artifact })}
+                            />
+                          </Suspense>
+                        )}
                       </div>
                       <div className="flex justify-end pt-1 mt-1 border-t border-slate-200/60">
-                        <CopyButton text={item.text} />
+                        <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3.5 w-3.5" /></button>
+                        <CopyButton text={item.text} title="Copy response" />
                       </div>
                     </div>
                   )}
@@ -2518,19 +2548,6 @@ return (
             </div>
           </div>
         ))}
-
-        {loading && !chat[chat.length - 1]?.status && !chat[chat.length - 1]?.text && (
-          <div className="flex gap-2.5 text-[13px]">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-transparent overflow-hidden flex items-center justify-center mt-1">
-              <img src="/logo/branding/navix-ai-dark-icon.png" className="w-full h-full object-cover rounded-full" alt="AI" />
-            </div>
-            <div className="bg-slate-50 border border-slate-100 px-3 py-2.5 rounded-2xl rounded-tl-sm flex items-center gap-1 shadow-sm">
-              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1 h-1 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Input Area */}

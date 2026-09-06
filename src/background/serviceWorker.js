@@ -7,6 +7,7 @@ import { ACTION_DECISION, createConfirmationBroker } from '../core/confirmationP
 import { generateImage, IMAGE_CANCEL_REQUEST, IMAGE_GENERATE_REQUEST } from '../capabilities/imageGeneration.js';
 
 const imageRequests = new Map();
+const PAGE_CONTEXT_REQUEST = 'NAVIX_PAGE_CONTEXT_REQUEST';
 
 function safeHttpOrigin(value, base) {
   try {
@@ -167,6 +168,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === PAGE_CONTEXT_REQUEST) {
+    currentTab()
+      .then((tab) => sendTabMessage(tab.id, { action: 'get_page_context' }))
+      .then((result) => sendResponse(result?.success === false ? result : { success: true, ...result }))
+      .catch((error) => sendResponse({ success: false, code: ErrorCode.PERMISSION_REQUIRED, error: error.message || 'Unable to read the active page.' }));
+    return true;
+  }
+
   if (message.type === IMAGE_GENERATE_REQUEST) {
     if (!message.requestId || typeof message.requestId !== 'string') {
       sendResponse({ success: false, error: toErrorPayload(new Error('Image request ID is required.')) });
@@ -229,20 +238,17 @@ async function handleAIRequestStream(request, lifecycle, options = {}) {
   
   let screenshotDataUrl = null;
   if (request.includeScreenshot) {
-    try {
-      screenshotDataUrl = await new Promise((resolve) => {
-        chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 50 }, (dataUrl) => {
-          if (chrome.runtime.lastError) resolve(null);
-          else resolve(dataUrl);
-        });
-      });
-    } catch (e) {
-      console.warn("Screenshot failed", e);
-    }
+    lifecycle.post({ status: 'Capturing the visible page…' });
+    screenshotDataUrl = await chromeCallback(
+      (done) => chrome.tabs.captureVisibleTab(null, { format: 'jpeg', quality: 65 }, done),
+      'Unable to capture the visible page.'
+    );
+    if (!screenshotDataUrl) throw new Error('Unable to capture the visible page.');
   }
   throwIfAborted(signal);
 
   let staleRefreshUsed = false;
+  lifecycle.post({ status: 'Contacting the selected AI model…' });
   await runProviderRequest({ ...request, screenshotDataUrl }, {
     signal,
     toolExecutor: async (name, args, toolSignal) => {

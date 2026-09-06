@@ -68,6 +68,7 @@ async function runSingleProvider(request, attempt, options, activity) {
   }
   const tools = options.toolExecutor && adapter.capabilities.tools ? BROWSER_TOOL_DEFINITIONS : [];
   const messages = initialMessages(request, prompt);
+  options.onStatus?.(`Working with ${attempt.provider}/${attempt.model}…`);
 
   for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration += 1) {
     throwIfAborted(options.signal);
@@ -111,11 +112,13 @@ async function runSingleProvider(request, attempt, options, activity) {
     for (const call of validatedCalls) {
       throwIfAborted(options.signal);
       activity.toolExecuted = true;
+      options.onStatus?.(`Running browser action: ${call.name.replaceAll('_', ' ')}…`);
       const resultValue = await options.toolExecutor(call.name, call.args, options.signal);
       if (resultValue === undefined || resultValue === null) {
         throw new AppError(ErrorCode.TOOL_RESULT_UNVERIFIED, 'The browser tool did not return a verifiable result.');
       }
       toolResults.push({ id: call.id, name: call.name, result: resultValue });
+      options.onStatus?.(`Browser action completed: ${call.name.replaceAll('_', ' ')}.`);
     }
     messages.push({ role: 'tool', toolResults });
   }

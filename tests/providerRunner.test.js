@@ -166,8 +166,8 @@ test('provider diagnostics have an independent normalized timeout', async () => 
   ), (error) => error.code === 'PROVIDER_UNAVAILABLE' && /timed out/i.test(error.message));
 });
 
-test('authentication and model errors never trigger automatic fallback', async () => {
-  for (const code of [ErrorCode.PROVIDER_AUTH_FAILED, ErrorCode.PROVIDER_MODEL_UNSUPPORTED]) {
+test('authentication errors never trigger automatic fallback', async () => {
+  for (const code of [ErrorCode.PROVIDER_AUTH_FAILED]) {
     let fallbackCalled = false;
     const registry = {
       openai: {
@@ -187,6 +187,29 @@ test('authentication and model errors never trigger automatic fallback', async (
       ]
     }, { registry, signal: new AbortController().signal }));
     assert.equal(fallbackCalled, false);
+  }
+});
+
+test('unavailable or capability-incompatible models fall back before output', async () => {
+  for (const code of [ErrorCode.PROVIDER_MODEL_UNSUPPORTED, ErrorCode.PROVIDER_CAPABILITY_UNSUPPORTED]) {
+    let fallbackCalled = false;
+    const registry = {
+      openai: {
+        id: 'openai', capabilities: { tools: false, screenshot: code !== ErrorCode.PROVIDER_CAPABILITY_UNSUPPORTED },
+        async generate() { throw new AppError(code, 'model cannot handle request'); }
+      },
+      gemini: {
+        id: 'gemini', capabilities: { tools: false, screenshot: true },
+        async generate(context) { fallbackCalled = true; context.onChunk('fallback'); return { text: 'fallback', toolCalls: [] }; }
+      }
+    };
+    const screenshotDataUrl = code === ErrorCode.PROVIDER_CAPABILITY_UNSUPPORTED ? 'data:image/jpeg;base64,abc' : '';
+    await runProviderRequest({
+      ...request,
+      screenshotDataUrl,
+      providerAttempts: [...request.providerAttempts, { provider: 'gemini', modelId: 'fallback', apiKey: 'two' }]
+    }, { registry, signal: new AbortController().signal, onChunk: () => {} });
+    assert.equal(fallbackCalled, true);
   }
 });
 

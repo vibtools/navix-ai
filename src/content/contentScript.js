@@ -1,4 +1,25 @@
-import { ensureUniqueInteractiveIds } from './domIdentity.js';
+import { ensureUniqueInteractiveIds, queryInteractiveElements } from './domIdentity.js';
+import { collectWebsiteIntelligence } from './webIntelligence.js';
+
+function queryAllDeep(selector, root = document) {
+  const matches = [];
+  const pending = [root];
+  while (pending.length) {
+    const current = pending.shift();
+    if (!current?.querySelectorAll) continue;
+    matches.push(...current.querySelectorAll(selector));
+    for (const element of current.querySelectorAll('*')) {
+      if (element.shadowRoot) pending.push(element.shadowRoot);
+    }
+  }
+  return matches;
+}
+
+function nextPaint() {
+  return new Promise((resolve) => {
+    globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(resolve));
+  });
+}
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   try {
@@ -15,13 +36,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
       // 1. Check for pure numeric data-ai-id
       if (/^\d+$/.test(selector)) {
-        const match = chooseUnique([...document.querySelectorAll(`[data-ai-id="${selector}"]`)]);
+        const match = chooseUnique(queryAllDeep(`[data-ai-id="${selector}"]`));
         if (match) return match;
       }
       
       // 2. Try standard CSS querySelector
       try {
-        const match = chooseUnique([...document.querySelectorAll(selector)]);
+        const match = chooseUnique(queryAllDeep(selector));
         if (match) return match;
       } catch(e) {
         // Selector was invalid CSS, we will fallback to fuzzy matching
@@ -29,7 +50,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
       // 3. Fuzzy matching across common interactive attributes
       const lowerSelector = selector.toLowerCase().trim();
-      const interactives = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])');
+      const interactives = queryInteractiveElements(document);
       
       // Phase A: Exact match on important attributes or text
       const exactMatches = [];
@@ -119,66 +140,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       else sendResponse({ success: true, target: result.target });
     }
     else if (request.action === "get_page_context" || request.action === "read_page") {
-      // Assign unique IDs to interactive elements in the live DOM for reliable AI targeting
       ensureUniqueInteractiveIds(document);
-
-      // Extract visible text and structure
-      const clone = document.body.cloneNode(true);
-      
-      // Remove noisy elements
-      const elementsToRemove = clone.querySelectorAll('script, style, noscript, iframe, svg, path, symbol, defs');
-      elementsToRemove.forEach(el => el.remove());
-      
-      // Basic structure extraction
-      let structureText = "";
-      const walkDOM = (node, depth = 0) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const text = node.textContent.trim();
-          if (text) structureText += "  ".repeat(depth) + text + "\n";
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const tag = node.tagName.toLowerCase();
-          const aiId = node.getAttribute('data-ai-id');
-          const id = node.id ? `#${node.id}` : "";
-          const role = node.getAttribute('role') ? ` [role="${node.getAttribute('role')}"]` : "";
-          const ariaLabel = node.getAttribute('aria-label') ? ` [aria-label="${node.getAttribute('aria-label')}"]` : "";
-          const nameAttr = node.getAttribute('name') ? ` [name="${node.getAttribute('name')}"]` : "";
-          
-          const isInteractive = aiId !== null;
-          
-          if (['h1','h2','h3','h4','h5','h6','p','article','section','nav','main'].includes(tag) || isInteractive) {
-             let nodeInfo = `<${tag}`;
-             if (aiId) nodeInfo += ` data-ai-id="${aiId}"`; // ALWAYS show data-ai-id if present
-             if (id && !aiId) nodeInfo += id; // only show id if no ai-id to save space
-             nodeInfo += `${role}${ariaLabel}${nameAttr}>`;
-             
-             if (tag === 'a' && node.href) nodeInfo += ` [href="${node.href.replace(window.location.origin, '')}"]`;
-             if (tag === 'img' && node.src) nodeInfo += ` [alt="${node.alt || ''}"]`;
-             if (['input', 'textarea'].includes(tag)) nodeInfo += ` [type="${node.type}"] [placeholder="${node.placeholder || ''}"]`;
-             
-             structureText += "  ".repeat(depth) + nodeInfo + "\n";
-             
-             for (let i = 0; i < node.childNodes.length; i++) {
-               walkDOM(node.childNodes[i], depth + 1);
-             }
-             
-             structureText += "  ".repeat(depth) + `</${tag}>\n`;
-          } else {
-             for (let i = 0; i < node.childNodes.length; i++) {
-               walkDOM(node.childNodes[i], depth);
-             }
-          }
-        }
-      };
-      
-      walkDOM(clone);
-      
-      // Truncate if too large to fit in context window gracefully
-      if (structureText.length > 80000) {
-        structureText = structureText.substring(0, 80000) + "\n...[truncated]";
-      }
-      
+      const website = collectWebsiteIntelligence(document);
       sendResponse({ 
-        text: structureText, 
+        success: true,
+        text: website.serialized,
+        intelligence: website.intelligence,
+        characterCount: website.characterCount,
+        truncated: website.truncated,
         title: document.title, 
         url: window.location.href 
       });
@@ -187,28 +156,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const verified = verifiedTarget(request.args.selector);
       const el = verified.el;
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // slight delay to allow scroll
-        setTimeout(() => {
+        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+        nextPaint().then(() => {
           try {
-            el.click();
+            const current = verifiedTarget(request.args.selector);
+            if (!current.el) {
+              sendResponse({ success: false, error: current.error, code: current.code || 'DOM_TARGET_STALE' });
+              return;
+            }
+            current.el.click();
             sendResponse({ success: true, message: `Clicked element ${request.args.selector}` });
           } catch(e) {
-            sendResponse({ error: `Error clicking element ${request.args.selector}: ${e.message}` });
+            sendResponse({ success: false, error: `Error clicking element ${request.args.selector}: ${e.message}` });
           }
-        }, 300);
+        });
       } else {
-        sendResponse({ error: verified.error, code: verified.code });
+        sendResponse({ success: false, error: verified.error, code: verified.code });
       }
     } 
     else if (request.action === "type_text") {
       const verified = verifiedTarget(request.args.selector);
       const el = verified.el;
       if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        setTimeout(() => {
+        el.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+        nextPaint().then(() => {
           try {
-            el.focus();
+            const current = verifiedTarget(request.args.selector);
+            if (!current.el) {
+              sendResponse({ success: false, error: current.error, code: current.code || 'DOM_TARGET_STALE' });
+              return;
+            }
+            const targetElement = current.el;
+            targetElement.focus();
             // Use native value setter for React/Vue compatibility
             const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
               window.HTMLInputElement.prototype,
@@ -220,52 +199,57 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             )?.set;
 
             const textToType = request.args.text;
-            if (el.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
-              nativeTextAreaValueSetter.call(el, textToType);
+            if (targetElement.tagName === 'SELECT') {
+              const option = [...targetElement.options].find((entry) => entry.value === textToType || entry.text.trim().toLowerCase() === textToType.trim().toLowerCase());
+              if (!option) throw new Error(`No option matching "${textToType}" was found.`);
+              targetElement.value = option.value;
+            } else if (targetElement.isContentEditable) {
+              targetElement.textContent = textToType;
+            } else if (targetElement.tagName === 'TEXTAREA' && nativeTextAreaValueSetter) {
+              nativeTextAreaValueSetter.call(targetElement, textToType);
             } else if (nativeInputValueSetter) {
-              nativeInputValueSetter.call(el, textToType);
+              nativeInputValueSetter.call(targetElement, textToType);
             } else {
-              el.value = textToType;
+              targetElement.value = textToType;
             }
-            
-            el.dispatchEvent(new Event('input', { bubbles: true }));
-            el.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            // Verification step to ensure value was set correctly
-            setTimeout(() => {
-              const currentValue = el.value || "";
-              if (currentValue === textToType || currentValue.includes(textToType)) {
+
+            targetElement.dispatchEvent(new globalThis.InputEvent('input', { bubbles: true, inputType: 'insertText', data: textToType }));
+            targetElement.dispatchEvent(new Event('change', { bubbles: true }));
+
+            globalThis.requestAnimationFrame(() => {
+              const currentValue = targetElement.isContentEditable ? targetElement.textContent : targetElement.value || "";
+              if (currentValue === textToType || currentValue.includes(textToType) || targetElement.tagName === 'SELECT' && targetElement.selectedOptions?.[0]?.text.trim().toLowerCase() === textToType.trim().toLowerCase()) {
                 sendResponse({ success: true, message: `Successfully typed text into ${request.args.selector}` });
               } else {
-                sendResponse({ error: `Verification failed for ${request.args.selector}. Expected "${textToType}", but got "${currentValue}". Form may be rejecting input.` });
+                sendResponse({ success: false, error: `Verification failed for ${request.args.selector}. The form rejected or changed the supplied value.`, code: 'TOOL_RESULT_UNVERIFIED' });
               }
-            }, 150);
+            });
           } catch(err) {
-             sendResponse({ error: `Error typing in ${request.args.selector}: ${err.message}` });
+             sendResponse({ success: false, error: `Error typing in ${request.args.selector}: ${err.message}` });
           }
-        }, 300);
+        });
       } else {
-        sendResponse({ error: verified.error, code: verified.code });
+        sendResponse({ success: false, error: verified.error, code: verified.code });
       }
     }
     else if (request.action === "press_enter") {
       const verified = verifiedTarget(request.args.selector);
       const el = verified.el;
       if (el) {
+        el.focus();
         el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
-        el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, bubbles: true }));
-        // Sometimes forms listen to submit or keypress
         el.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', keyCode: 13, bubbles: true }));
+        el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, bubbles: true }));
         sendResponse({ success: true, message: `Pressed Enter on ${request.args.selector}` });
       } else {
-        sendResponse({ error: verified.error, code: verified.code });
+        sendResponse({ success: false, error: verified.error, code: verified.code });
       }
     }
     else {
-      sendResponse({ error: "Unknown action" });
+      sendResponse({ success: false, error: "Unknown action" });
     }
   } catch (err) {
-    sendResponse({ error: err.message });
+    sendResponse({ success: false, error: err.message });
   }
   return true; // Keep channel open
 });

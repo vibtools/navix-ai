@@ -1,7 +1,7 @@
 import { AppError, ErrorCode } from './errorContract.js';
 
 export const CONTENT_LIMITS = Object.freeze({
-  page: 80_000,
+  page: 31_000,
   attachment: 120_000,
   total: 240_000
 });
