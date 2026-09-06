@@ -20,10 +20,10 @@ Existing storage identifiers, sessions, history, providers, settings, capability
 
 - File: `navix-ai-v1.0.0.2.0.zip`
 - Files: 45
-- Size: 9,518,984 bytes
-- SHA-256: `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92`
+- Size: 9,518,960 bytes
+- SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`
 
-The ZIP uses stored entries with fixed metadata so identical extension files produce identical bytes across supported Node runner/zlib versions.
+The ZIP uses stored entries with fixed metadata, and Tailwind scans only runtime source, so documentation/workspace text and zlib versions cannot change the artifact.
 
 ## Verification boundary
 

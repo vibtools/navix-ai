@@ -54,6 +54,12 @@ test('release ZIP construction is byte-stable across Node/zlib versions', async 
   assert.match(packager, /return \{ date: 0x0021, time: 0 \}/);
 });
 
+test('Tailwind scans runtime source only, not release documentation', async () => {
+  const css = await source('src/index.css');
+  assert.match(css, /@import "tailwindcss" source\(none\)/);
+  assert.match(css, /@source "\.\/"/);
+});
+
 test('repository hygiene excludes proven debug and empty legacy assets', async () => {
   for (const path of [
     'test-idb.js',

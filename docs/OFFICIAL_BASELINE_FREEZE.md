@@ -68,7 +68,7 @@ Frozen artifact identity:
 - Product/tag: `v1.0.0.2.0`
 - Chrome manifest version: `1.0.0.3`
 - Files: 45
-- Size: 9,518,984 bytes
-- SHA-256: `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92`
+- Size: 9,518,960 bytes
+- SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`
 
 Deterministic acceptance is frozen as lint pass, 80/80 focused tests, production build pass, zero high/critical production dependency vulnerabilities, cross-runtime byte-stable packaging, package verification pass, and server smoke pass. Installed-Chrome, live-provider/OCR, accessibility, upgrade, and store checks are not silently promoted to passes and remain recorded in the verification report.

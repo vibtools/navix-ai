@@ -20,7 +20,7 @@
 - Chrome manifest version: `1.0.0.3`
 - Expected Git tag after approval: `v1.0.0.2.0`
 - License: MIT
-- Candidate ZIP SHA-256: `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92`
+- Candidate ZIP SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`
 - Artifact must contain no server bundle, source map, package manifest, local
   environment file, test file, or documentation file.
 - The tagged workflow publishes the release only after the quality job passes.
@@ -50,4 +50,4 @@ only when unavailable runtime rows and limitations are disclosed in its notes.
 
 ## v1.0.0.2.0 deterministic evidence
 
-The scoped follow-on passed lint, 80/80 focused tests, production build and bundle budgets, production high-severity dependency audit, 45-file extension-only packaging, SHA-256/release-manifest verification, and server smoke. A final CI/local comparison exposed zlib-dependent DEFLATE bytes; the packager now uses fixed-metadata stored entries and two consecutive package runs produced the identical digest above. The unavailable installed-Chrome and credentialed-provider rows remain visibly unclaimed.
+The scoped follow-on passed lint, 80/80 focused tests, production build and bundle budgets, production high-severity dependency audit, 45-file extension-only packaging, SHA-256/release-manifest verification, and server smoke. CI/local comparison exposed both container and generated-CSS inputs: the packager now uses fixed-metadata stored entries, Tailwind scans only `src/`, and two consecutive fresh packages produced the identical digest above. The unavailable installed-Chrome and credentialed-provider rows remain visibly unclaimed.
