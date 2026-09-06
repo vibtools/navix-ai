@@ -47,6 +47,13 @@ test('release tooling and documentation are present', async () => {
   ]) await access(new URL(`../${path}`, import.meta.url));
 });
 
+test('release ZIP construction is byte-stable across Node/zlib versions', async () => {
+  const packager = await source('scripts/package-extension.mjs');
+  assert.doesNotMatch(packager, /deflateRawSync/);
+  assert.match(packager, /const method = 0/);
+  assert.match(packager, /return \{ date: 0x0021, time: 0 \}/);
+});
+
 test('repository hygiene excludes proven debug and empty legacy assets', async () => {
   for (const path of [
     'test-idb.js',

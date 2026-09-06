@@ -20,8 +20,10 @@ Existing storage identifiers, sessions, history, providers, settings, capability
 
 - File: `navix-ai-v1.0.0.2.0.zip`
 - Files: 45
-- Size: 5,077,875 bytes
-- SHA-256: `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`
+- Size: 9,518,984 bytes
+- SHA-256: `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92`
+
+The ZIP uses stored entries with fixed metadata so identical extension files produce identical bytes across supported Node runner/zlib versions.
 
 ## Verification boundary
 

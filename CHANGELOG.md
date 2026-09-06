@@ -24,7 +24,8 @@
 - Added focused tests for Website Intelligence, site permission decisions, multi-enabled model configuration, and model/capability fallback; 80/80 focused tests pass.
 - Lint, production build, production dependency audit, extension-only packaging, release verification, and server smoke gates pass.
 - Product version: `1.0.0.2.0`; Chrome manifest version: `1.0.0.3`; `version_name`: `v1.0.0.2.0`.
-- Release ZIP SHA-256: `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd` (45 files, 5,077,875 bytes).
+- Replaced zlib-dependent ZIP compression with byte-stable stored entries after CI/local digest comparison exposed cross-runtime DEFLATE variance.
+- Release ZIP SHA-256: `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92` (45 files, 9,518,984 bytes).
 - Installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission checks remain explicit external runtime gates.
 
 ## v1.0.0.1.3 — Phase 04 release candidate

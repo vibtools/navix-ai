@@ -108,11 +108,24 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/${TAG}" \
+              -f sha="$GITHUB_SHA" -F force=true
+            gh release upload "$TAG" \
+              "release/navix-ai-v${VERSION}.zip#Navix AI Chrome extension" \
+              "release/SHA256SUMS#SHA-256 checksums" \
+              --clobber
+            gh release edit "$TAG" \
+              --title "Navix AI v${VERSION}" \
+              --notes-file RELEASE_NOTES.md
+            exit 0
+          fi
           RELEASE_REF_ARGS=(--verify-tag)
           if [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
             RELEASE_REF_ARGS=(--target "$GITHUB_SHA")
           fi
-          gh release create "v${VERSION}" \
+          gh release create "$TAG" \
             "release/navix-ai-v${VERSION}.zip#Navix AI Chrome extension" \
             "release/SHA256SUMS#SHA-256 checksums" \
             "${RELEASE_REF_ARGS[@]}" \

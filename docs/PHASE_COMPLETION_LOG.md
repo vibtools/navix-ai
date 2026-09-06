@@ -220,7 +220,7 @@ Implemented behavior: bounded semantic/accessibility Website Intelligence; scree
 | `npm run verify:release` | Pass — identity, permissions, exclusions, checksum, and manifest |
 | `npm run smoke:server` | Pass — production UI and safe provider failure |
 
-Artifact: `navix-ai-v1.0.0.2.0.zip`, 5,077,875 bytes, SHA-256 `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`.
+Artifact: `navix-ai-v1.0.0.2.0.zip`, 9,518,984 bytes, SHA-256 `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92`. Stored ZIP entries with fixed metadata make the artifact byte-stable across Node/zlib runner versions.
 
 External runtime limitations: no installed Chrome/Chromium executable and no live provider credentials were available in the audit environment. Installed-extension UI/action/permission, credentialed provider/image/OCR, accessibility, upgrade, and store checks therefore remain unclaimed.
 

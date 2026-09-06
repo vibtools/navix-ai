@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { deflateRawSync } from 'node:zlib';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 
@@ -43,9 +42,10 @@ function createZip(files) {
   for (const file of files) {
     const name = encoder.encode(file.name);
     const source = file.content;
-    const compressed = deflateRawSync(source, { level: 9 });
-    const method = compressed.length < source.length ? 8 : 0;
-    const data = method === 8 ? compressed : source;
+    // Store entries without DEFLATE. zlib output can differ across Node runner
+    // versions even with identical input; method 0 keeps the ZIP byte-identical.
+    const method = 0;
+    const data = source;
     const checksum = crc32(source);
     const localHeader = Buffer.concat([
       writeUInt32(0x04034b50), writeUInt16(20), writeUInt16(0x800), writeUInt16(method),

@@ -2,7 +2,7 @@
 
 ## v1.0.0.2.0 addendum — 2026-09-06 UTC
 
-The scoped follow-on closes source-level findings F-023 through F-028: bounded Website Intelligence with semantic/accessibility/action/form/bounds data, screenshot fusion, explicit current-site/all-sites permission recovery, multi-enabled model configuration with one primary, enabled-only model/capability fallback, stable request-bound chat activity/actions, and stronger shadow-DOM/form/click execution. Lint, 80/80 tests, build/budgets, production dependency audit, extension packaging/verification, and server smoke pass. The 45-file ZIP is 5,077,875 bytes with SHA-256 `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`.
+The scoped follow-on closes source-level findings F-023 through F-028: bounded Website Intelligence with semantic/accessibility/action/form/bounds data, screenshot fusion, explicit current-site/all-sites permission recovery, multi-enabled model configuration with one primary, enabled-only model/capability fallback, stable request-bound chat activity/actions, and stronger shadow-DOM/form/click execution. Lint, 80/80 tests, build/budgets, production dependency audit, extension packaging/verification, and server smoke pass. The corrected byte-stable 45-file ZIP is 9,518,984 bytes with SHA-256 `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92`.
 
 The detailed comparison, findings, root causes, evidence, and limitations are recorded in `V1.0.0.2.0_VERIFICATION_REPORT.md`. Installed Chrome/Chromium and live provider credentials were unavailable; those runtime gates remain unclaimed and block full runtime/store certification, not publication of the explicitly approved GitHub source release with these limitations disclosed.
 

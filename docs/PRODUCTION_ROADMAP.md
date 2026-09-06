@@ -136,7 +136,7 @@ Rollback reference: the Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0`
 
 The user-approved follow-on scope repairs the reported Phase 01–04 runtime gaps without adding unrelated workflows: Website Intelligence with semantic/accessibility/action/form/bounds data, 30k smart compression, visible-tab screenshot fusion, explicit current-site/all-sites access, multiple enabled models with one primary and enabled-only fallback, stable live chat activity plus copy/retry/edit, and stronger shadow-DOM/form/click targeting.
 
-The runtime implementation is frozen at `73c5acd1742853f0556c1697269310c0c1d35096`. Lint, 80/80 tests, build/budgets, production dependency audit, package/release verification, and server smoke pass. The release ZIP has 45 files, is 5,077,875 bytes, and has SHA-256 `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`.
+The runtime implementation is frozen at `73c5acd1742853f0556c1697269310c0c1d35096`. Lint, 80/80 tests, build/budgets, production dependency audit, package/release verification, and server smoke pass. The corrected byte-stable release ZIP has 45 files, is 9,518,984 bytes, and has SHA-256 `a3dade7a5eff0653a7fb1b23334b19d6f84d24d29c3741755fe573015a7b4f92`.
 
 Installed Chrome/Chromium and live provider credentials were unavailable in the audit environment; corresponding rendered UI/action/permission, credentialed provider/OCR, accessibility, upgrade, and store checks remain explicit external gates.
 
