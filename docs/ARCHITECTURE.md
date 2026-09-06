@@ -30,6 +30,9 @@ Responsible for:
 - User conversation
 - Command input
 - AI response display
+- Request-bound live activity, streaming, retry, copy, and prompt editing
+- Explicit current-site/all-sites permission decisions
+- Multiple enabled model configurations with one primary configuration
 
 ### Background Service Worker
 
@@ -38,6 +41,7 @@ Responsible for:
 - Task handling
 - Communication between components
 - Abort-aware provider and browser-tool execution
+- Structured page-context requests and visible-tab screenshot capture
 
 ### Content Script
 
@@ -46,6 +50,10 @@ Responsible for:
 - DOM analysis
 - Executing browser actions
 - Maintaining stable collision-free numeric action identities
+- Producing a bounded Website Intelligence JSON envelope with semantic sections, forms, accessibility nodes, content, actions, and visual bounds
+- Traversing open shadow roots, revalidating targets before action, and verifying typed/select/contenteditable results
+
+The side panel requests page context through the service worker. If page or screenshot context is enabled, permission/capture failures stop locally and expose the relevant recovery control instead of calling a provider without the requested data. Screenshot requests combine the current visible-tab image with the same DOM/accessibility intelligence envelope.
 
 ### Core Contracts
 
@@ -59,6 +67,8 @@ Responsible for:
 - `actionPolicy.js` and `confirmationProtocol.js`: risk classification, validated action details, expiring request-bound one-time approval, and fail-closed denial/replay behavior.
 - `trustBoundary.js` and `filePolicy.js`: bounded untrusted page/file envelopes, injection-risk markers, rendered-URL policy, and upload limits.
 - `credentialVault.js`: secretless public provider records, session credentials, and optional PBKDF2-SHA-256/AES-GCM persistent storage.
+- `sitePermissions.js`: explicit current-origin/all-HTTP(S) permission decisions and persisted-grant checks.
+- `modelConfiguration.js`: multiple-enabled/one-primary configuration invariants and enabled-only fallback candidates.
 
 ### Capability Engines
 

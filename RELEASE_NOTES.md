@@ -1,34 +1,35 @@
-# Navix AI v1.0.0.1.3
+# Navix AI v1.0.0.2.0
 
-Navix AI v1.0.0.1.3 is the Phase 04 production-hardening release candidate.
+Navix AI v1.0.0.2.0 is the scoped Website Intelligence and browser-automation stabilization release built on the completed Phase 01–04 baseline.
 
 ## Included
 
-- Reduced initial side-panel JavaScript from roughly 1.06 MB to roughly 312 KB
-  by lazy-loading Markdown/syntax rendering, PDF/OCR processing, structured
-  capabilities, and the capability drawer.
-- Added local PDF/OCR worker modules with bounded extraction and deterministic
-  cleanup.
-- Added a deterministic extension-only ZIP packager; server bundles and source
-  maps are excluded from the Chrome artifact.
-- Added release verification for manifest identity, permissions, required
-  extension files, artifact contents, checksums, and bundle budgets.
-- Restored CI gates for install, lint, tests, build, release packaging, release
-  verification, and production-server smoke testing.
-- Added MIT licensing and privacy notes, removed proven debug/dead/empty
-  repository assets, and synchronized Phase 04 documentation.
+- Website Intelligence JSON combining semantic page structure, actionable targets, forms, accessibility nodes, visible text, and element bounds within a 30,000-character provider envelope.
+- Optional visible-tab screenshot fusion with the structured page context.
+- User-facing **Allow This Site** and **Allow All Sites** decisions, with persisted all-site consent preventing repeated prompts on normal HTTP(S) pages.
+- Multiple simultaneously enabled model configurations, one primary configuration, enabled-only fallback, and bounded fallback when a selected model or capability is unavailable before any output or action.
+- Stable request-bound assistant messages with compact live activity updates, plus prompt copy/retry/edit and response copy/retry.
+- More reliable click and form automation across open shadow roots, select controls, contenteditable fields, and dynamically changing targets.
+- Current built-in Gemini 3.x and stable Gemini 2.5 model identifiers, with provider model synchronization retained.
 
-## Compatibility
+## Compatibility and safety
 
-The existing Navix AI UI, providers, settings, stored-data identifiers,
-sessions, history, attachments, OCR, actions, and least-privilege permission
-model are retained. The Chrome-compatible version is `1.0.0.2`; the product
-version name and Git tag are `v1.0.0.1.3`.
+Existing storage identifiers, sessions, history, providers, settings, capability controls, approval policy, trust boundaries, and least-privilege manifest design are retained. The Chrome-compatible version is `1.0.0.3`; the product version name and Git tag are `v1.0.0.2.0`.
 
-## Verification
+## Artifact
 
-The release workflow runs the full deterministic local gate before publishing
-a tagged GitHub release. Credentialed live-provider, installed-Chrome, and
-visual accessibility checks must be completed in the release environment with
-real provider accounts and a Chrome runtime; the repository workflow is the
-authoritative repeatable gate for those checks.
+- File: `navix-ai-v1.0.0.2.0.zip`
+- Files: 45
+- Size: 5,077,875 bytes
+- SHA-256: `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`
+
+## Verification boundary
+
+The deterministic repository gates pass: lint, 80 focused tests, production build, high-severity production dependency audit, extension packaging/verification, and server smoke. This environment did not contain an installed Chrome/Chromium runtime or live provider credentials, so installed-extension UI, credentialed provider/image/OCR, accessibility, upgrade, and store-submission checks are not represented as passed.
+
+## Install
+
+1. Download and extract `navix-ai-v1.0.0.2.0.zip`.
+2. Open `chrome://extensions`, enable Developer mode, and choose **Load unpacked**.
+3. Select the extracted folder.
+4. Configure a provider, open Navix AI, and explicitly grant page access when requested.

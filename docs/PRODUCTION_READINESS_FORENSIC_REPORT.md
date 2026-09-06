@@ -1,5 +1,11 @@
 # Production Readiness Forensic Report
 
+## v1.0.0.2.0 addendum — 2026-09-06 UTC
+
+The scoped follow-on closes source-level findings F-023 through F-028: bounded Website Intelligence with semantic/accessibility/action/form/bounds data, screenshot fusion, explicit current-site/all-sites permission recovery, multi-enabled model configuration with one primary, enabled-only model/capability fallback, stable request-bound chat activity/actions, and stronger shadow-DOM/form/click execution. Lint, 80/80 tests, build/budgets, production dependency audit, extension packaging/verification, and server smoke pass. The 45-file ZIP is 5,077,875 bytes with SHA-256 `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`.
+
+The detailed comparison, findings, root causes, evidence, and limitations are recorded in `V1.0.0.2.0_VERIFICATION_REPORT.md`. Installed Chrome/Chromium and live provider credentials were unavailable; those runtime gates remain unclaimed and block full runtime/store certification, not publication of the explicitly approved GitHub source release with these limitations disclosed.
+
 ## Executive verdict
 
 Navix AI is a buildable Manifest V3 browser assistant with shared Gemini/OpenAI/Hugging Face/Ollama execution, guarded browser tools, local persistence, and document/image/data capabilities. Phase 04 implementation is complete in release candidate `v1.0.0.1.3`: heavy modules are lazy-loaded, automated release gates pass, extension-only packaging is deterministic, and release/privacy documentation is synchronized. It is not yet a final production release because installed-Chrome/live-provider/OCR E2E, accessibility, upgrade, store validation, and explicit tag/release approval remain outstanding runtime gates.

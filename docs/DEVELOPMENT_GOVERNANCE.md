@@ -44,7 +44,7 @@
 
 ## Workflow freeze
 
-Extension build/ZIP generation is restored for Phase 04 release-candidate validation behind the lint/test/build/audit/package/verify/smoke gates. Public artifact publication, tag creation, and final release remain blocked until runtime acceptance and explicit release approval.
+Extension build/ZIP generation is restored behind the lint/test/build/audit/package/verify/smoke gates. Full runtime/store certification requires the runtime acceptance matrix. A GitHub source release may be published after the deterministic gates and explicit user approval only when every unavailable runtime gate is disclosed without being represented as passed.
 
 ## Approval command format
 

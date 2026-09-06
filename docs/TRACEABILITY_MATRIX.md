@@ -22,6 +22,12 @@
 | F-020 | Versioned release | 04 | Candidate `v1.0.0.1.3`, deterministic checksum/release manifest, gated CI, and tag check | Release candidate; final tag/release approval open |
 | F-021 | Accurate documentation | 01-04 | README, architecture, features, security, privacy, QA, status, changelog, and release-note synchronization | Controlled — release-candidate limitations documented |
 | F-022 | Repository hygiene | 04 | Tracked-file/dead-code audit, empty-placeholder removal, and MIT license | Closed — Phase 04 implementation |
+| F-023 | Website Intelligence and smart compression | v1.0.0.2.0 | Semantic/accessibility/action/form/bounds and 30k truncation tests | Closed — focused tests/build |
+| F-024 | Repeated/missing site permission recovery | v1.0.0.2.0 | Current-origin/all-sites permission decision tests and Sidebar recovery wiring | Root cause closed; installed-Chrome gate external |
+| F-025 | Multiple model enablement and unavailable-model recovery | v1.0.0.2.0 | Multiple-enabled/one-primary invariants plus model/capability fallback tests | Root cause closed; live-provider gate external |
+| F-026 | Chat blink, duplicate bubble, and message action gaps | v1.0.0.2.0 | Request-bound row/status source audit, lint, build, prompt/response actions | Root cause closed; rendered-Chrome gate external |
+| F-027 | Dynamic form/click target reliability | v1.0.0.2.0 | Shadow-root lookup, revalidation, native input/select/contenteditable handling, and contract regression | Root cause closed; complex-site E2E external |
+| F-028 | Fake/demo context and stale built-in model entries | v1.0.0.2.0 | Source hygiene scan, provider model catalog update, package verification | Closed — no simulated page context |
 
 ## Required synchronization
 

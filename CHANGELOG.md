@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.0.0.2.0 — Website intelligence and automation stabilization
+
+### Website understanding and automation
+
+- Added a bounded Website Intelligence JSON pipeline with page-type inference, semantic sections, actions, form fields, accessibility-tree nodes, and visual target bounds.
+- Reduced the maximum page-context envelope from an 80,000-character HTML-oriented dump to a 30,000-character compressed intelligence payload.
+- Fused the current visible-tab screenshot with DOM and accessibility context when screenshot context is enabled; capture failures are explicit.
+- Added open-shadow-root discovery, deep target lookup, immediate target revalidation, native form-value setters, select/contenteditable support, and post-action value verification.
+
+### Permission, model, and chat reliability
+
+- Added explicit **Allow This Site** and **Allow All Sites** controls. An all-sites grant satisfies later HTTP(S) page-context requests without repeatedly prompting.
+- Changed provider configuration state so multiple configurations may remain enabled while exactly one is primary; automatic fallback considers only enabled configurations.
+- Allowed bounded pre-output fallback for unavailable model/capability failures while preserving the existing no-fallback rules after output, actions, authentication errors, or cancellation.
+- Updated the built-in Gemini catalog to current Gemini 3.x and stable 2.5 identifiers while retaining provider-side model synchronization.
+- Replaced the temporary typing bubble with one request-bound assistant row and compact live activity states, preventing asynchronous updates from landing on another message.
+- Added prompt copy/retry/edit and assistant copy/retry actions; Markdown is rendered after streaming completes to avoid layout flicker.
+- Removed the simulated page-context fallback and the misleading “More features coming soon” entry.
+
+### Verification and packaging
+
+- Added focused tests for Website Intelligence, site permission decisions, multi-enabled model configuration, and model/capability fallback; 80/80 focused tests pass.
+- Lint, production build, production dependency audit, extension-only packaging, release verification, and server smoke gates pass.
+- Product version: `1.0.0.2.0`; Chrome manifest version: `1.0.0.3`; `version_name`: `v1.0.0.2.0`.
+- Release ZIP SHA-256: `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd` (45 files, 5,077,875 bytes).
+- Installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission checks remain explicit external runtime gates.
+
 ## v1.0.0.1.3 — Phase 04 release candidate
 
 ### Runtime and packaging

@@ -51,3 +51,24 @@ No runtime source, UI, provider, data schema, feature behavior, or product versi
 Every phase must compare affected behavior with this baseline. A phase cannot complete while an existing feature is removed, silently changed, or unverified. Compatibility migrations must be tested before acceptance.
 
 When documents conflict, authority is: verified source/test evidence; this freeze plus approved phase scope; `ACTUAL_IMPLEMENTATION_STATUS.md`; forensic/traceability records; then roadmap and descriptive documents. Unverified claims never override verified behavior.
+
+## v1.0.0.2.0 next-baseline freeze
+
+The original Phase 01–04 ancestry and compatibility contracts above remain the historical baseline. The approved follow-on runtime implementation is frozen at source commit `73c5acd1742853f0556c1697269310c0c1d35096` with these additional locked behaviors:
+
+1. Website Intelligence JSON capped at 30,000 characters, including semantic sections, accessibility nodes, actions, forms, visible content, stable target IDs, and visual bounds.
+2. Visible-tab screenshot context combined with DOM/accessibility context when explicitly enabled.
+3. Explicit **Allow This Site** and **Allow All Sites** choices, with an existing all-sites grant reused for normal HTTP(S) pages.
+4. Multiple enabled model configurations, exactly one primary configuration, and enabled-only bounded fallback before output or browser actions.
+5. One stable request-bound assistant row with compact live activity, prompt copy/retry/edit, and assistant copy/retry.
+6. Open-shadow-root-aware target lookup, immediate revalidation, native form setters, select/contenteditable support, and result verification.
+
+Frozen artifact identity:
+
+- Product/tag: `v1.0.0.2.0`
+- Chrome manifest version: `1.0.0.3`
+- Files: 45
+- Size: 5,077,875 bytes
+- SHA-256: `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`
+
+Deterministic acceptance is frozen as lint pass, 80/80 focused tests, production build pass, zero high/critical production dependency vulnerabilities, package verification pass, and server smoke pass. Installed-Chrome, live-provider/OCR, accessibility, upgrade, and store checks are not silently promoted to passes and remain recorded in the verification report.

@@ -8,7 +8,7 @@
 
 ## Production Hardening Status
 
-The `v1.0.0.1.3` release candidate is the Phase 04 implementation of the four-phase production-hardening program. It retains the existing UI/UX and now has lazy-loaded heavy capabilities, deterministic extension-only packaging, automated lint/test/build/security/release gates, synchronized privacy and release documentation, and restored CI artifact generation. Final production readiness is not yet declared: installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission acceptance still require a runtime environment and explicit release approval.
+`v1.0.0.2.0` is the scoped follow-on to the Phase 01–04 baseline. It adds a bounded Website Intelligence payload (semantic map, accessibility tree, actionable targets, form metadata, and visual bounds), screenshot/DOM fusion, explicit per-site or all-site consent, multiple enabled model configurations with one primary, capability-aware fallback, stable live activity rendering, prompt/response actions, and more reliable shadow-DOM-aware browser actions. The deterministic lint/test/build/security/package gates pass. Installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission acceptance still require an appropriate runtime and are not inferred from compilation.
 
 Current feature truth, open findings, phase progress, and approval rules are maintained in the [documentation index](docs/DOCUMENTATION_INDEX.md).
 
@@ -55,13 +55,13 @@ Browser Extension (UI & Sidebar)
        │
        ├─► API Configuration Layer (Gemini, OpenAI, Ollama)
        │
-       ├─► Live DOM Context Engine (Reads HTML, CSS, visual elements)
+       ├─► Website Intelligence Engine (Semantic DOM, accessibility, visual bounds)
        │
        └─► Action Execution Layer (Clicks, Inputs, Navigation)
 ```
 
 ## 🛠️ Development Phase
-Phase 04 implementation is complete as release candidate `v1.0.0.1.3`. Automated gates pass locally; final runtime acceptance and the approved tag/release remain pending.
+The scoped `v1.0.0.2.0` implementation and deterministic release artifact are complete. See the verification report for the exact pass evidence and the live-runtime gates that could not be executed in this environment.
 
 ## 📚 Production Documentation
 
@@ -74,6 +74,7 @@ Phase 04 implementation is complete as release candidate `v1.0.0.1.3`. Automated
 - [Production Traceability Matrix](docs/TRACEABILITY_MATRIX.md)
 - [Development Governance and Approval Gates](docs/DEVELOPMENT_GOVERNANCE.md)
 - [Phase 04 QA Matrix](docs/PHASE04_QA_MATRIX.md)
+- [v1.0.0.2.0 Verification Report](docs/V1.0.0.2.0_VERIFICATION_REPORT.md)
 - [Privacy](PRIVACY.md)
 - [Release Notes](RELEASE_NOTES.md)
 - [Changelog](CHANGELOG.md)

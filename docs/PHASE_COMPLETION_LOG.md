@@ -6,11 +6,11 @@
 | --- | --- |
 | Frozen source | `f8f0817c93fa2cfa4ccca85c2cad051a2ca43e6f` |
 | Total phases | 4 |
-| Completed | 3 finalized; Phase 04 implementation complete as release candidate |
-| Active phase | Phase 04 runtime/release acceptance |
-| Remaining | Installed-Chrome, live-provider/OCR, accessibility, upgrade, store, and final release approval |
+| Completed | Phase 01–04 and scoped v1.0.0.2.0 implementation complete under deterministic gates |
+| Active phase | External runtime/store acceptance |
+| Remaining | Installed-Chrome, live-provider/OCR, accessibility, upgrade, and store acceptance |
 | Build/ZIP workflow | Restored with lint/test/build/package/verify/smoke gates |
-| Production release | Release candidate `v1.0.0.1.3`; final release not approved |
+| Production release | `v1.0.0.2.0` verified artifact prepared for the approved GitHub tag/release |
 
 ## Pre-phase governance record
 
@@ -21,7 +21,7 @@ The baseline was verified, the four-phase roadmap locked, findings registered, s
 | 01 — Deterministic Core and State Integrity | Completed | Build/state/storage/session/selector/cancellation integrity | 19/19 tests, lint/build/audit/smoke evidence recorded below |
 | 02 — Unified Providers and Agent Reliability | Completed | Unified reliable provider and tool behavior | 44/44 cumulative tests, lint/build/audit/smoke evidence recorded below |
 | 03 — Security and Real Capability Completion | Completed | Safe policy/privacy/secrets and truthful features | 66/66 cumulative tests, lint/build/audit/smoke evidence recorded below |
-| 04 — Performance, Full QA, and Release | Implementation complete — release candidate | Optimized verified package and final release | 71 tests, budgeted build, extension-only ZIP/checksum, smoke, and synchronized docs; runtime/release acceptance pending |
+| 04 — Performance, Full QA, and Release | Implementation complete | Optimized verified package and gated release | 71-test Phase 04 evidence plus the v1.0.0.2.0 follow-on record below |
 
 ## Mandatory completion record
 
@@ -195,5 +195,33 @@ Verification evidence:
 Release-candidate SHA-256: `721ed373700fa5796828cce8627108f15807f1c1f4a996e13ef59a838ffd7875`.
 
 Remaining acceptance: installed Chrome permission/action/injection tests; credentialed provider/image and OCR runtime/network tests; accessibility; storage upgrade/restart/quota behavior; store-package validation; and explicit final tag/release approval. These are not inferred from compilation or focused Node tests.
+
+## v1.0.0.2.0 scoped follow-on record
+
+| Field | Record |
+| --- | --- |
+| Approval | User-requested Website Intelligence, permission/model/chat/automation repair and v1.0.0.2.0 release |
+| Status | Implementation and deterministic verification complete — 2026-09-06 UTC |
+| Runtime source SHA | `73c5acd1742853f0556c1697269310c0c1d35096` |
+| Findings | F-023 and F-028 closed; F-024 through F-027 root causes closed with installed/live runtime gates retained |
+| Compatibility | Existing providers, settings, storage identifiers, sessions/history, capability controls, approval/trust policy, and least-privilege manifest architecture retained |
+| Version | Product/tag `v1.0.0.2.0`; Chrome manifest `1.0.0.3` |
+
+Implemented behavior: bounded semantic/accessibility Website Intelligence; screenshot/DOM fusion; explicit current-site/all-sites permission recovery; multiple enabled model configurations with one primary; enabled-only capability-aware fallback; stable request-bound activity/stream/error UI; prompt/response actions; and open-shadow-root-aware, revalidated, result-checked browser actions.
+
+| Gate | Result |
+| --- | --- |
+| Dependency install | Pass — exact lockfile dependencies present |
+| `npm run lint` | Pass — 0 errors |
+| `npm test` | Pass — 80/80 |
+| `npm run build` | Pass — extension/content/server bundles and budgets |
+| `npm audit --omit=dev --audit-level=high` | Pass — 0 high/critical production vulnerabilities |
+| `npm run package:extension` | Pass — 45-file extension-only ZIP |
+| `npm run verify:release` | Pass — identity, permissions, exclusions, checksum, and manifest |
+| `npm run smoke:server` | Pass — production UI and safe provider failure |
+
+Artifact: `navix-ai-v1.0.0.2.0.zip`, 5,077,875 bytes, SHA-256 `c3cb7d2738538487a10326508fcab6e7301d025784e9c23b54ace9e495c281cd`.
+
+External runtime limitations: no installed Chrome/Chromium executable and no live provider credentials were available in the audit environment. Installed-extension UI/action/permission, credentialed provider/image/OCR, accessibility, upgrade, and store checks therefore remain unclaimed.
 
 Rollback reference: Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0`.

@@ -14,7 +14,8 @@ credential store.
   contain keys.
 - Page context, screenshots, attachments, OCR text, and image-generation
   prompts leave the browser only when the user enables the relevant feature and
-  sends a request to the selected provider.
+  sends a request to the selected provider. Page context is compressed into a
+  bounded semantic/accessibility envelope rather than transmitting full HTML.
 - Page and file data are bounded and marked as untrusted before they are added
   to a provider request. External page content cannot approve a browser action.
 - OCR executable code and workers are packaged locally. English OCR language
@@ -24,10 +25,12 @@ credential store.
 ## User controls
 
 Users can disable page context, screenshots, search, file transmission, image
-generation, and other optional capabilities in the existing settings. Sensitive
-and destructive browser actions show their exact target and require one-time
-approval. Revoking consent or clearing the credential vault removes the
-corresponding local state.
+generation, and other optional capabilities in the existing settings. A page
+request may grant only the current site or, after an explicit **Allow All Sites**
+choice, all normal HTTP(S) sites; browser permission settings can revoke either
+grant. Sensitive and destructive browser actions show their exact target and
+require one-time approval. Revoking consent or clearing the credential vault
+removes the corresponding local state.
 
 ## Provider responsibility
 
