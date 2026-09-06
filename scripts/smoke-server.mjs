@@ -4,7 +4,14 @@ import { spawn } from 'node:child_process';
 const port = Number.parseInt(process.env.NAVIX_SMOKE_PORT || '3100', 10);
 const child = spawn(process.execPath, ['dist/server.cjs'], {
   cwd: process.cwd(),
-  env: { ...process.env, NODE_ENV: 'production', PORT: String(port) },
+  env: { 
+    ...process.env, 
+    NODE_ENV: 'production', 
+    PORT: String(port),
+    GEMINI_API_KEY: '',
+    OPENAI_API_KEY: '',
+    HUGGINGFACE_API_KEY: ''
+  },
   stdio: ['ignore', 'pipe', 'pipe']
 });
 

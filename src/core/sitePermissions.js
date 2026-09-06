@@ -27,10 +27,14 @@ export async function inspectActiveSiteAccess(environment = globalThis) {
   const tabs = await callbackResult(environment, (done) => chromeApi.tabs.query({ active: true, currentWindow: true }, done), 'Unable to inspect the active tab.');
   const url = tabs?.[0]?.url || '';
   const pattern = originPatternFromUrl(url);
-  if (!pattern) return { supported: false, granted: false, allSites: false, url, origin: '', pattern: '' };
   const allSites = await callbackResult(environment, (done) => chromeApi.permissions.contains({ origins: ALL_SITE_ORIGINS }, done), 'Unable to inspect all-site access.');
+  
+  if (!pattern) {
+    return { supported: true, restricted: true, granted: Boolean(allSites), allSites: Boolean(allSites), url: '', origin: 'this restricted page', pattern: '' };
+  }
+  
   const granted = allSites || await callbackResult(environment, (done) => chromeApi.permissions.contains({ origins: [pattern] }, done), 'Unable to inspect site access.');
-  return { supported: true, granted: Boolean(granted), allSites: Boolean(allSites), url, origin: new URL(url).origin, pattern };
+  return { supported: true, restricted: false, granted: Boolean(granted), allSites: Boolean(allSites), url, origin: new URL(url).origin, pattern };
 }
 
 export async function requestSiteAccess({ pattern, allSites = false }, environment = globalThis) {

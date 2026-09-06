@@ -6,9 +6,8 @@ import { isAbortError, toErrorPayload } from './src/core/errorContract.js';
 
 async function startServer() {
   const app = express();
-  const configuredPort = Number.parseInt(process.env.PORT || '3000', 10);
-  const port = Number.isInteger(configuredPort) && configuredPort >= 0 && configuredPort <= 65_535 ? configuredPort : 3000;
-  const host = process.env.HOST || '0.0.0.0';
+  const port = parseInt(process.env.PORT || '3000', 10);
+  const host = '0.0.0.0';
 
   app.use(express.json());
 
@@ -19,6 +18,14 @@ async function startServer() {
     res.on('close', () => {
       if (!res.writableEnded) controller.abort();
     });
+
+    if (req.body?.providerAttempts) {
+      req.body.providerAttempts.forEach(attempt => {
+        if (attempt.provider === 'gemini' && process.env.GEMINI_API_KEY) attempt.apiKey = attempt.apiKey || process.env.GEMINI_API_KEY;
+        if (attempt.provider === 'openai' && process.env.OPENAI_API_KEY) attempt.apiKey = attempt.apiKey || process.env.OPENAI_API_KEY;
+        if (attempt.provider === 'huggingface' && process.env.HUGGINGFACE_API_KEY) attempt.apiKey = attempt.apiKey || process.env.HUGGINGFACE_API_KEY;
+      });
+    }
 
     try {
       await generateChatResponse(req.body, (chunk) => {
@@ -53,6 +60,12 @@ async function startServer() {
       if (!res.writableEnded) controller.abort();
     });
 
+    if (req.body?.attempt) {
+      if (req.body.attempt.provider === 'gemini' && process.env.GEMINI_API_KEY) req.body.attempt.apiKey = req.body.attempt.apiKey || process.env.GEMINI_API_KEY;
+      if (req.body.attempt.provider === 'openai' && process.env.OPENAI_API_KEY) req.body.attempt.apiKey = req.body.attempt.apiKey || process.env.OPENAI_API_KEY;
+      if (req.body.attempt.provider === 'huggingface' && process.env.HUGGINGFACE_API_KEY) req.body.attempt.apiKey = req.body.attempt.apiKey || process.env.HUGGINGFACE_API_KEY;
+    }
+
     try {
       const result = await testProviderConnection(req.body?.attempt, controller.signal);
       res.json({ success: true, result });
@@ -68,7 +81,10 @@ async function startServer() {
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { 
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : { port: 0 }
+      },
       appType: 'spa'
     });
     app.use(vite.middlewares);

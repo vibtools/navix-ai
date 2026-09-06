@@ -28,7 +28,7 @@ test('extension artifact workflow runs the Phase 04 release gates', async () => 
   assert.match(workflow, /push:/);
   assert.match(workflow, /pull_request:/);
   assert.doesNotMatch(workflow, /if: \$\{\{ false \}\}/);
-  assert.match(workflow, /npm ci/);
+  assert.match(workflow, /npm install/);
   assert.match(workflow, /npm run lint/);
   assert.match(workflow, /npm test/);
   assert.match(workflow, /npm run build/);

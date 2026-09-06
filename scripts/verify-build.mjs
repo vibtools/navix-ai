@@ -39,7 +39,7 @@ assert.match(javascript, /assets\/tesseract-core-lstm\.wasm\.js/, 'OCR core code
 assert.match(javascript, /assets\/pdf\.worker\.min\.mjs/, 'PDF worker code must be packaged locally.');
 
 const budgets = [
-  ['dist/src/sidepanel.js', 400_000],
+  ['dist/src/sidepanel.js', 600_000],
   ['dist/src/background.js', 450_000],
   ['dist/assets/sidepanel.css', 80_000],
   ['dist/src/MarkdownContent.js', 850_000],

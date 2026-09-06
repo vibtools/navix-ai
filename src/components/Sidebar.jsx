@@ -167,7 +167,7 @@ export default function Sidebar() {
   const [chatLoaded, setChatLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [includeContext, setIncludeContext] = useState(true);
+  const [includeContext, setIncludeContext] = useState(false);
   const [includeScreenshot, setIncludeScreenshot] = useState(false);
   const [thinkMode, setThinkMode] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -243,13 +243,18 @@ export default function Sidebar() {
   const [vaultError, setVaultError] = useState('');
   const [showVaultDialog, setShowVaultDialog] = useState(false);
   const [privacyConsent, setPrivacyConsent] = useState(false);
-  const [siteAccess, setSiteAccess] = useState({ supported: false, granted: false, allSites: false, url: '', origin: '', pattern: '' });
+  const [siteAccess, setSiteAccess] = useState({ supported: false, restricted: false, granted: false, allSites: false, url: '', origin: '', pattern: '' });
   const [siteAccessBusy, setSiteAccessBusy] = useState(false);
   const [siteAccessError, setSiteAccessError] = useState('');
   
   const [testStatus, setTestStatus] = useState('idle');
   const [testMessage, setTestMessage] = useState('');
   const [saveStatus, setSaveStatus] = useState('idle');
+
+  const loadingRef = useRef(false);
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
   
   const [settingsPageTab, setSettingsPageTab] = useState('model'); // main tab
   const [settingsTab, setSettingsTab] = useState('gemini'); // model sub-tab
@@ -329,7 +334,7 @@ export default function Sidebar() {
   };
 
   const grantSiteAccess = async (allSites) => {
-    if (!siteAccess.pattern || siteAccessBusy) return;
+    if ((!siteAccess.pattern && !allSites) || siteAccessBusy) return;
     setSiteAccessBusy(true);
     setSiteAccessError('');
     try {
@@ -516,7 +521,9 @@ export default function Sidebar() {
         responseLanguage: result.responseLanguage || 'Auto'
       });
 
-      if (result.chatHistory) setChat(result.chatHistory);
+      if (result.chatHistory) {
+        setChat(result.chatHistory.map(item => ({ ...item, status: '' })));
+      }
       setChatLoaded(true);
     }).catch((error) => {
       console.error('Unable to initialize local extension state:', error);
@@ -553,12 +560,17 @@ export default function Sidebar() {
       if (changes.customInstructionsEnabled !== undefined) setCustomInstructionsEnabled(changes.customInstructionsEnabled);
       if (changes.responseLanguage !== undefined) setResponseLanguage(changes.responseLanguage);
       
-      if (changes.chatSessions !== undefined) setChatSessions(changes.chatSessions);
-      if (changes.currentSessionId !== undefined) setCurrentSessionId(changes.currentSessionId);
+      if (changes.chatSessions !== undefined) {
+        if (!loadingRef.current) setChatSessions(changes.chatSessions);
+      }
+      if (changes.currentSessionId !== undefined) {
+        if (!loadingRef.current) setCurrentSessionId(changes.currentSessionId);
+      }
       
       if (changes.chatHistory !== undefined) {
         // Simple heuristic to prevent looping back the save
         setChat(prev => {
+          if (loadingRef.current) return prev;
           if (JSON.stringify(prev) !== JSON.stringify(changes.chatHistory)) {
             return changes.chatHistory;
           }
@@ -572,9 +584,9 @@ export default function Sidebar() {
 
   useEffect(() => {
     if (chatLoaded) {
-      const persistedChat = chat.map(({ imageDataUrl, status, ...item }) => imageDataUrl
+      const persistedChat = chat.map(({ imageDataUrl, ...item }) => imageDataUrl
         ? { ...item, text: item.text || '[Generated image — open chat session did not persist image bytes.]' }
-        : { ...item, ...(status ? { status: '' } : {}) });
+        : item);
       AppStorage.set({ chatHistory: persistedChat });
       
       if (chat.length > 0) {
@@ -633,8 +645,9 @@ export default function Sidebar() {
     const session = chatSessions.find(s => s.id === id);
     if (session) {
       setCurrentSessionId(id);
-      setChat(session.messages || []);
-      AppStorage.set({ currentSessionId: id, chatHistory: session.messages || [] });
+      const cleanMessages = (session.messages || []).map(m => ({ ...m, status: '' }));
+      setChat(cleanMessages);
+      AppStorage.set({ currentSessionId: id, chatHistory: cleanMessages });
       setShowHistory(false);
     }
   };
@@ -1230,6 +1243,20 @@ export default function Sidebar() {
     }
   };
 
+  const retryAssistantMessageAt = (index) => {
+    if (loading) return;
+    let userIndex = index;
+    while (userIndex >= 0 && chat[userIndex]?.role !== 'user') {
+      userIndex -= 1;
+    }
+    
+    if (userIndex >= 0 && chat[userIndex]?.text) {
+      const userText = chat[userIndex].text;
+      setChat(prev => prev.slice(0, userIndex));
+      setTimeout(() => sendMessage(userText), 10);
+    }
+  };
+
   const handleSummarizePage = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     sendMessage(tabSummaryInstruction, true);
@@ -1272,6 +1299,9 @@ export default function Sidebar() {
       await AppStorage.set({ currentSessionId: requestSessionId });
     }
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const requestId = createRequestId();
     const userMessageId = createRequestId();
     const updateAssistant = (updates) => {
@@ -1301,6 +1331,7 @@ export default function Sidebar() {
       if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
         try {
           const contextResponse = await chrome.runtime.sendMessage({ type: 'NAVIX_PAGE_CONTEXT_REQUEST' });
+          if (controller.signal.aborted) return;
           if (!contextResponse?.success || !contextResponse.text) {
             const error = new Error(contextResponse?.error || 'The active page did not return readable content.');
             error.code = contextResponse?.code;
@@ -1314,13 +1345,14 @@ export default function Sidebar() {
             text: err.code === 'PERMISSION_REQUIRED'
               ? '**Page access required.** Use **Allow This Site** or **Allow All Sites** above, then retry this prompt.'
               : `**Page reading error:** ${err.message || 'Unable to read the active page.'}`,
-            status: ''
+            status: '',
+            isError: true
           });
           setLoading(false);
           return;
         }
       } else {
-        updateAssistant({ text: '**Page reading is available only in the installed Chrome extension.**', status: '' });
+        updateAssistant({ text: '**Page reading is available only in the installed Chrome extension.**', status: '', isError: true });
         setLoading(false);
         return;
       }
@@ -1395,7 +1427,7 @@ export default function Sidebar() {
         const imageDataUrl = `data:${response.result.mimeType};base64,${response.result.data}`;
         updateAssistant({ text: `Generated with ${imageGenModel}.`, status: '', imageDataUrl });
       } catch (error) {
-        updateAssistant({ text: `**⚠️ Image generation error:** ${error.message}`, status: '' });
+        updateAssistant({ text: `**⚠️ Image generation error:** ${error.message}`, status: '', isError: true });
       } finally {
         imageRequestIdRef.current = null;
         setLoading(false);
@@ -1427,7 +1459,8 @@ export default function Sidebar() {
       const handleError = (errorMsg) => {
         updateAssistant((item) => ({
           text: item.text ? `${item.text}\n\n**⚠️ Error:** ${errorMsg}` : `**⚠️ Error:** ${errorMsg}`,
-          status: ''
+          status: '',
+          isError: true
         }));
         setLoading(false);
       };
@@ -1484,8 +1517,6 @@ export default function Sidebar() {
       } else {
         // Fallback to our Web API Service Layer when not in Chrome Extension mode
         const doFetch = async () => {
-          const controller = new AbortController();
-          abortControllerRef.current = controller;
           try {
             const res = await fetch('/api/chat', {
               method: 'POST',
@@ -2460,7 +2491,7 @@ return (
             <div className="min-w-0 flex-1">
               <p className="truncate text-[11px] font-semibold text-amber-900">Allow Navix AI to read {siteAccess.origin}</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
-                <button type="button" onClick={() => grantSiteAccess(false)} disabled={siteAccessBusy} className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[10px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Allow This Site</button>
+                <button type="button" onClick={() => grantSiteAccess(false)} disabled={siteAccessBusy || !siteAccess.pattern} className="rounded-md border border-amber-300 bg-white px-2 py-1 text-[10px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50">Allow This Site</button>
                 <button type="button" onClick={() => grantSiteAccess(true)} disabled={siteAccessBusy} className="rounded-md bg-amber-700 px-2 py-1 text-[10px] font-semibold text-white hover:bg-amber-800 disabled:opacity-50">Allow All Sites</button>
               </div>
               {siteAccessError && <p className="mt-1 text-[10px] text-red-700">{siteAccessError}</p>}
@@ -2538,7 +2569,20 @@ return (
                         )}
                       </div>
                       <div className="flex justify-end pt-1 mt-1 border-t border-slate-200/60">
-                        <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3.5 w-3.5" /></button>
+                        {item.isError && (
+                          <button 
+                            type="button" 
+                            onClick={() => retryAssistantMessageAt(index)} 
+                            disabled={loading} 
+                            className="flex items-center gap-1.5 mr-auto rounded px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-40 font-medium text-[11px] transition-colors" 
+                            title="Restart specific task">
+                            <RefreshCw className="h-3 w-3" />
+                            Retry Task
+                          </button>
+                        )}
+                        {!item.isError && (
+                          <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3.5 w-3.5" /></button>
+                        )}
                         <CopyButton text={item.text} title="Copy response" />
                       </div>
                     </div>
