@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - phase-04-release-readiness
+      - 'release/v*'
     tags:
       - 'v*'
   pull_request:
@@ -70,8 +71,8 @@ jobs:
           retention-days: 14
 
   release:
-    name: Publish tagged GitHub release
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -87,8 +88,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Verify tag matches product version
-        run: node scripts/verify-tag.mjs
+      - name: Verify release ref matches product version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            node scripts/verify-tag.mjs
+          else
+            test "$GITHUB_REF" = "refs/heads/release/v${VERSION}"
+          fi
 
       - name: Download release candidate
         uses: actions/download-artifact@v4
@@ -101,9 +108,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
+          RELEASE_REF_ARGS=(--verify-tag)
+          if [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            RELEASE_REF_ARGS=(--target "$GITHUB_SHA")
+          fi
           gh release create "v${VERSION}" \
             "release/navix-ai-v${VERSION}.zip#Navix AI Chrome extension" \
             "release/SHA256SUMS#SHA-256 checksums" \
-            --verify-tag \
+            "${RELEASE_REF_ARGS[@]}" \
             --title "Navix AI v${VERSION}" \
             --notes-file RELEASE_NOTES.md
