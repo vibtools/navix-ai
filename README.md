@@ -8,7 +8,7 @@
 
 ## Production Hardening Status
 
-`v1.0.0.2.1` is the scoped follow-on to the Phase 01–04 baseline. It adds a bounded Website Intelligence payload (semantic map, accessibility tree, actionable targets, form metadata, and visual bounds), screenshot/DOM fusion, explicit per-site or all-site consent, multiple enabled model configurations with one primary, capability-aware fallback, stable live activity rendering, prompt/response actions, and more reliable shadow-DOM-aware browser actions. The deterministic lint/test/build/security/package gates pass. Installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission acceptance still require an appropriate runtime and are not inferred from compilation.
+`v1.0.0.2.2` is the scoped follow-on to the Phase 01–04 baseline. It adds a bounded Website Intelligence payload (semantic map, accessibility tree, actionable targets, form metadata, and visual bounds), screenshot/DOM fusion, explicit per-site or all-site consent, multiple enabled model configurations with one primary, capability-aware fallback, stable live activity rendering, prompt/response actions, and more reliable shadow-DOM-aware browser actions. The deterministic lint/test/build/security/package gates pass. Installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission acceptance still require an appropriate runtime and are not inferred from compilation.
 
 Current feature truth, open findings, phase progress, and approval rules are maintained in the [documentation index](docs/DOCUMENTATION_INDEX.md).
 
@@ -61,7 +61,7 @@ Browser Extension (UI & Sidebar)
 ```
 
 ## 🛠️ Development Phase
-The scoped `v1.0.0.2.1` implementation and deterministic release artifact are complete. See the verification report for the exact pass evidence and the live-runtime gates that could not be executed in this environment.
+The scoped `v1.0.0.2.2` implementation and deterministic release artifact are complete. See the verification report for the exact pass evidence and the live-runtime gates that could not be executed in this environment.
 
 ## 📚 Production Documentation
 
@@ -74,7 +74,7 @@ The scoped `v1.0.0.2.1` implementation and deterministic release artifact are co
 - [Production Traceability Matrix](docs/TRACEABILITY_MATRIX.md)
 - [Development Governance and Approval Gates](docs/DEVELOPMENT_GOVERNANCE.md)
 - [Phase 04 QA Matrix](docs/PHASE04_QA_MATRIX.md)
-- [v1.0.0.2.1 Verification Report](docs/V1.0.0.2.1_VERIFICATION_REPORT.md)
+- [v1.0.0.2.2 Verification Report](docs/V1.0.0.2.2_VERIFICATION_REPORT.md)
 - [Privacy](PRIVACY.md)
 - [Release Notes](RELEASE_NOTES.md)
 - [Changelog](CHANGELOG.md)

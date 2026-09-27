@@ -1,10 +1,10 @@
 # Production Readiness Forensic Report
 
-## v1.0.0.2.1 addendum — 2026-09-06 UTC
+## v1.0.0.2.2 addendum — 2026-09-06 UTC
 
 The scoped follow-on closes source-level findings F-023 through F-028: bounded Website Intelligence with semantic/accessibility/action/form/bounds data, screenshot fusion, explicit current-site/all-sites permission recovery, multi-enabled model configuration with one primary, enabled-only model/capability fallback, stable request-bound chat activity/actions, and stronger shadow-DOM/form/click execution. Lint, 80/80 tests, build/budgets, production dependency audit, extension packaging/verification, and server smoke pass. The corrected byte-stable 45-file ZIP is 9,518,960 bytes with SHA-256 `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`.
 
-The detailed comparison, findings, root causes, evidence, and limitations are recorded in `V1.0.0.2.1_VERIFICATION_REPORT.md`. Installed Chrome/Chromium and live provider credentials were unavailable; those runtime gates remain unclaimed and block full runtime/store certification, not publication of the explicitly approved GitHub source release with these limitations disclosed.
+The detailed comparison, findings, root causes, evidence, and limitations are recorded in `V1.0.0.2.2_VERIFICATION_REPORT.md`. Installed Chrome/Chromium and live provider credentials were unavailable; those runtime gates remain unclaimed and block full runtime/store certification, not publication of the explicitly approved GitHub source release with these limitations disclosed.
 
 ## Executive verdict
 

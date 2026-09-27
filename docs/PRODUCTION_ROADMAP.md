@@ -132,7 +132,7 @@ Remaining acceptance: installed Chrome permission/action/injection flows, creden
 
 Rollback reference: the Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0`.
 
-## v1.0.0.2.1 approved follow-on closure
+## v1.0.0.2.2 approved follow-on closure
 
 The user-approved follow-on scope repairs the reported Phase 01–04 runtime gaps without adding unrelated workflows: Website Intelligence with semantic/accessibility/action/form/bounds data, 30k smart compression, visible-tab screenshot fusion, explicit current-site/all-sites access, multiple enabled models with one primary and enabled-only fallback, stable live chat activity plus copy/retry/edit, and stronger shadow-DOM/form/click targeting.
 

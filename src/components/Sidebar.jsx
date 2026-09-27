@@ -80,34 +80,46 @@ const CopyButton = ({ text, title = 'Copy' }) => {
   );
 };
 
-function SearchableSelect({ value, onChange, options, placeholder }) {
+function SearchableSelect({ value, onChange, options, placeholder, allowCustom = true }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState(value);
+  
+  const getLabel = (val) => {
+    if (options.length > 0 && typeof options[0] === 'object') {
+      const found = options.find(o => o.value === val);
+      return found ? found.label : val;
+    }
+    return val;
+  };
+
+  const [search, setSearch] = useState(getLabel(value));
   const wrapperRef = useRef(null);
 
   useEffect(() => {
-    setSearch(value);
-  }, [value]);
+    setSearch(getLabel(value));
+  }, [value, options]);
 
   useEffect(() => {
     function handleClickOutside(event) {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false);
-        setSearch(value); 
+        setSearch(getLabel(value)); 
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [value]);
+  }, [value, options]);
 
-  const filteredOptions = options.filter(opt => opt.toLowerCase().includes(search.toLowerCase()));
+  const filteredOptions = options.filter(opt => {
+    const label = typeof opt === 'object' ? opt.label : opt;
+    return label.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div className="relative" ref={wrapperRef}>
       <div className="relative">
         <input
           type="text"
-          value={isOpen ? search : value}
+          value={isOpen ? search : getLabel(value)}
           onChange={(e) => {
             setSearch(e.target.value);
             if (!isOpen) setIsOpen(true);
@@ -129,31 +141,39 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 overflow-y-auto no-scrollbar">
           {filteredOptions.length > 0 ? (
-            filteredOptions.map(opt => (
-              <div
-                key={opt}
-                className={`px-3 py-2 text-[13px] cursor-pointer ${value === opt ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+            filteredOptions.map((opt, i) => {
+              const optValue = typeof opt === 'object' ? opt.value : opt;
+              const optLabel = typeof opt === 'object' ? opt.label : opt;
+              return (
+                <div
+                  key={typeof opt === 'object' ? optValue : optLabel + i}
+                  className={`px-3 py-2 text-[13px] cursor-pointer ${value === optValue ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700 hover:bg-slate-100'}`}
+                  onClick={() => {
+                    onChange(optValue);
+                    setIsOpen(false);
+                  }}
+                >
+                  {optLabel}
+                </div>
+              );
+            })
+          ) : (
+            allowCustom ? (
+              <div 
+                className="px-3 py-2 text-[13px] hover:bg-slate-100 cursor-pointer text-blue-600 font-medium flex items-center justify-between"
                 onClick={() => {
-                  onChange(opt);
-                  setIsOpen(false);
+                  if (search.trim()) {
+                    onChange(search.trim());
+                    setIsOpen(false);
+                  }
                 }}
               >
-                {opt}
+                <span className="truncate pr-2">Use custom: "{search}"</span>
+                <Plus className="w-3.5 h-3.5 flex-shrink-0" />
               </div>
-            ))
-          ) : (
-            <div 
-              className="px-3 py-2 text-[13px] hover:bg-slate-100 cursor-pointer text-blue-600 font-medium flex items-center justify-between"
-              onClick={() => {
-                if (search.trim()) {
-                  onChange(search.trim());
-                  setIsOpen(false);
-                }
-              }}
-            >
-              <span className="truncate pr-2">Use custom: "{search}"</span>
-              <Plus className="w-3.5 h-3.5 flex-shrink-0" />
-            </div>
+            ) : (
+              <div className="px-3 py-2 text-[13px] text-slate-500 text-center">No matches found</div>
+            )
           )}
         </div>
       )}
@@ -174,6 +194,10 @@ export default function Sidebar() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  
+  // Voice State
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
 
   // History State
   const [showHistory, setShowHistory] = useState(false);
@@ -1228,6 +1252,64 @@ export default function Sidebar() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const toggleVoiceInput = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Your browser does not support voice input.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    
+    let baseMessage = message;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+      
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
+      }
+      
+      if (finalTranscript) {
+         baseMessage = (baseMessage ? baseMessage.trim() + ' ' : '') + finalTranscript.trim();
+         setMessage(baseMessage + (interimTranscript ? ' ' + interimTranscript : ''));
+      } else {
+         setMessage((baseMessage ? baseMessage.trim() + ' ' : '') + interimTranscript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
   const editPrompt = (text) => {
     setMessage(text);
     globalThis.requestAnimationFrame(() => {
@@ -1646,23 +1728,22 @@ export default function Sidebar() {
                     </div>
                   </div>
                   
-                  <div className="relative mb-4 border-b border-slate-100 pb-4">
-                    <select
+                  <div className="relative mb-3">
+                    <SearchableSelect
                       value={settingsTab}
-                      onChange={(e) => {
-                        setSettingsTab(e.target.value);
+                      onChange={(val) => {
+                        setSettingsTab(val);
                         clearCurrentForm();
                       }}
-                      className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 px-3 py-2 rounded-lg text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-slate-800/20 focus:border-slate-400 transition-all cursor-pointer shadow-sm"
-                    >
-                      <option value="gemini">Google Gemini</option>
-                      <option value="openai">OpenAI</option>
-                      <option value="huggingface">Hugging Face</option>
-                      <option value="ollama">Ollama</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 pb-4 text-slate-500">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </div>
+                      options={[
+                        { value: 'gemini', label: 'Google Gemini' },
+                        { value: 'openai', label: 'OpenAI' },
+                        { value: 'huggingface', label: 'Hugging Face' },
+                        { value: 'ollama', label: 'Ollama' }
+                      ]}
+                      placeholder="Select Provider..."
+                      allowCustom={false}
+                    />
                   </div>
 
                   {editingConfigId && (
@@ -2966,7 +3047,7 @@ return (
               }
             }}
             rows={1}
-            placeholder="Ask anything, @ models, / prompts"
+            placeholder={isListening ? "Listening..." : "Ask anything, @ models, / prompts"}
             className="w-full bg-transparent px-4 pt-3 pb-2 text-[13px] focus:outline-none resize-none overflow-y-auto no-scrollbar"
             style={{ height: '40px', minHeight: '40px', maxHeight: '120px' }}
           />
@@ -2989,8 +3070,15 @@ return (
               >
                 <BookOpen className="w-4 h-4" />
               </button>
-              <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer" title="Voice Input">
-                <Mic className="w-4 h-4" />
+              <button 
+                onClick={toggleVoiceInput}
+                className={`p-2 rounded-xl transition-colors cursor-pointer relative ${isListening ? 'text-blue-600 bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`} 
+                title="Voice Input"
+              >
+                {isListening && (
+                  <span className="absolute inset-0 rounded-xl ring-2 ring-blue-500/30 animate-pulse"></span>
+                )}
+                <Mic className="w-4 h-4 relative z-10" />
               </button>
               
               {loading ? (

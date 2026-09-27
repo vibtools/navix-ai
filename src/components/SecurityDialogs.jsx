@@ -25,10 +25,10 @@ export function ActionConfirmationDialog({ confirmation, onDecision }) {
           {confirmation.action?.destination && <div><dt className="font-semibold uppercase tracking-wide text-slate-400">Destination</dt><dd className="mt-0.5 break-all text-slate-700">{confirmation.action.destination}</dd></div>}
           {confirmation.action?.text && <div><dt className="font-semibold uppercase tracking-wide text-slate-400">Data</dt><dd className="mt-0.5 max-h-24 overflow-y-auto whitespace-pre-wrap break-words text-slate-700">{confirmation.action.text}</dd></div>}
         </dl>
-        <div className="mt-4 flex justify-end gap-2">
-          <button type="button" disabled={busy} onClick={() => decide(false)} className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-50"><X className="h-3.5 w-3.5" />Deny</button>
-          <button type="button" disabled={busy} onClick={() => decide(true)} className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><Check className="h-3.5 w-3.5" />Approve once</button>
-          <button type="button" disabled={busy} onClick={() => decide(true, true)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><Check className="h-3.5 w-3.5" />Approve always</button>
+        <div className="mt-4 flex items-center justify-end gap-1.5">
+          <button type="button" disabled={busy} onClick={() => decide(false)} className="flex items-center gap-1 rounded-md bg-slate-100 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 transition-colors disabled:opacity-50"><X className="h-3 w-3" />Deny</button>
+          <button type="button" disabled={busy} onClick={() => decide(true)} className="flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200/60 px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 hover:bg-blue-100 transition-colors disabled:opacity-50"><Check className="h-3 w-3" />Once</button>
+          <button type="button" disabled={busy} onClick={() => decide(true, true)} className="flex items-center gap-1 rounded-md bg-emerald-500 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600 shadow-sm transition-colors disabled:opacity-50"><Check className="h-3 w-3" />Always</button>
         </div>
       </div>
     </div>
