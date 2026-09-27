@@ -1,14 +1,12 @@
 import React from 'react';
-import { Shield, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 
 export default function Terms({ onAccept }) {
   return (
     <div className="fixed inset-0 z-[100] bg-slate-50 flex flex-col h-full w-full">
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col max-w-2xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto compact-scrollbar p-6 flex flex-col max-w-2xl mx-auto w-full">
         <div className="flex items-center gap-3 mb-6 mt-4">
-          <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl">
-            <Shield className="w-6 h-6" />
-          </div>
+          <img src="/logo/branding/navix-ai-dark-icon.png" alt="Navix AI" className="h-11 w-11 object-cover rounded-xl shadow-sm" />
           <div>
             <h1 className="text-xl font-bold text-slate-800">Welcome to Navix AI</h1>
             <p className="text-[13px] text-slate-500 font-medium">Please review our Terms & Privacy Policy</p>
@@ -19,7 +17,7 @@ export default function Terms({ onAccept }) {
           <div className="p-4 bg-slate-50 border-b border-slate-200">
             <h2 className="text-[14px] font-semibold text-slate-800">Terms of Service & Privacy Policy</h2>
           </div>
-          <div className="flex-1 p-5 overflow-y-auto text-[13px] text-slate-600 leading-relaxed space-y-4">
+          <div className="flex-1 p-5 overflow-y-auto compact-scrollbar text-[12px] text-slate-600 leading-relaxed space-y-4 pr-3">
             <p>
               <strong>1. Open Source & Privacy:</strong> Navix AI is an open-source browser automation and AI assistant. We prioritize your privacy. Your API keys, chat history, and settings are stored locally on your device and are never sent to our servers.
             </p>

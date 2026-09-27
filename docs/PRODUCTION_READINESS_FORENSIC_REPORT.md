@@ -1,10 +1,10 @@
 # Production Readiness Forensic Report
 
-## v1.0.0.2.2 addendum — 2026-09-06 UTC
+## v1.0.0.2.3 addendum — 2026-09-06 UTC
 
 The scoped follow-on closes source-level findings F-023 through F-028: bounded Website Intelligence with semantic/accessibility/action/form/bounds data, screenshot fusion, explicit current-site/all-sites permission recovery, multi-enabled model configuration with one primary, enabled-only model/capability fallback, stable request-bound chat activity/actions, and stronger shadow-DOM/form/click execution. Lint, 80/80 tests, build/budgets, production dependency audit, extension packaging/verification, and server smoke pass. The corrected byte-stable 45-file ZIP is 9,518,960 bytes with SHA-256 `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`.
 
-The detailed comparison, findings, root causes, evidence, and limitations are recorded in `V1.0.0.2.2_VERIFICATION_REPORT.md`. Installed Chrome/Chromium and live provider credentials were unavailable; those runtime gates remain unclaimed and block full runtime/store certification, not publication of the explicitly approved GitHub source release with these limitations disclosed.
+The detailed comparison, findings, root causes, evidence, and limitations are recorded in `V1.0.0.2.3_VERIFICATION_REPORT.md`. Installed Chrome/Chromium and live provider credentials were unavailable; those runtime gates remain unclaimed and block full runtime/store certification, not publication of the explicitly approved GitHub source release with these limitations disclosed.
 
 ## Executive verdict
 
@@ -84,3 +84,18 @@ This report uses the official frozen baseline. Findings do not authorize impleme
 The release candidate was built from the Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0` on `phase-04-release-readiness`. Local automated verification passed: ESLint, 71 Node tests, deterministic build and bundle budgets, offline production dependency audit, extension-only ZIP packaging, release/checksum verification, and server smoke. The candidate ZIP SHA-256 is `721ed373700fa5796828cce8627108f15807f1c1f4a996e13ef59a838ffd7875`.
 
 The remaining evidence is intentionally explicit: install and upgrade in Chrome, permission/action/injection flows on representative sites, credentialed live-provider and image requests, OCR recognition/network behavior, accessibility review, storage restart/quota behavior, store-package validation, and approved tag/release creation. No automated build result is treated as proof of those runtime checks.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

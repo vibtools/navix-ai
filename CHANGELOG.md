@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0.2.2 — Website intelligence and automation stabilization
+## v1.0.0.2.3 — Website intelligence and automation stabilization
 
 ### Website understanding and automation
 
@@ -23,7 +23,7 @@
 
 - Added focused tests for Website Intelligence, site permission decisions, multi-enabled model configuration, and model/capability fallback; 80/80 focused tests pass.
 - Lint, production build, production dependency audit, extension-only packaging, release verification, and server smoke gates pass.
-- Product version: `1.0.0.2.2`; Chrome manifest version: `1.0.0.3`; `version_name`: `v1.0.0.2.2`.
+- Product version: `1.0.0.2.3`; Chrome manifest version: `1.0.0.3`; `version_name`: `v1.0.0.2.3`.
 - Fixed release reproducibility after CI/local comparison: ZIP entries now use fixed-metadata storage and Tailwind scans only runtime `src/` files instead of documentation/workspace text.
 - Release ZIP SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528` (45 files, 9,518,960 bytes).
 - Installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission checks remain explicit external runtime gates.
@@ -98,3 +98,18 @@
 - Rebranded the project/assets to Navix AI.
 - Preserved legacy storage identifiers for compatibility.
 - Established the buildable source baseline for production hardening.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

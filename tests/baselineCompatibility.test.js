@@ -7,8 +7,8 @@ test('Phase 04 preserves extension identity/version and applies locked least pri
   const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(manifest.name, 'Navix AI');
   assert.equal(manifest.version, '1.0.0.3');
-  assert.equal(manifest.version_name, 'v1.0.0.2.2');
-  assert.equal(packageJson.version, '1.0.0.2.2');
+  assert.equal(manifest.version_name, 'v1.0.0.2.3');
+  assert.equal(packageJson.version, '1.0.0.2.3');
   assert.deepEqual(manifest.permissions, ['sidePanel', 'activeTab', 'scripting', 'storage']);
   assert.ok(!manifest.host_permissions.includes('<all_urls>'));
   assert.ok(manifest.host_permissions.includes('https://cdn.jsdelivr.net/*'));

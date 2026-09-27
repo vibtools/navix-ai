@@ -132,7 +132,7 @@ Remaining acceptance: installed Chrome permission/action/injection flows, creden
 
 Rollback reference: the Phase 03 head `2ba99cd9f2e0d2884fd7d4a335b4af498e0df2a0`.
 
-## v1.0.0.2.2 approved follow-on closure
+## v1.0.0.2.3 approved follow-on closure
 
 The user-approved follow-on scope repairs the reported Phase 01–04 runtime gaps without adding unrelated workflows: Website Intelligence with semantic/accessibility/action/form/bounds data, 30k smart compression, visible-tab screenshot fusion, explicit current-site/all-sites access, multiple enabled models with one primary and enabled-only fallback, stable live chat activity plus copy/retry/edit, and stronger shadow-DOM/form/click targeting.
 
@@ -143,3 +143,18 @@ Installed Chrome/Chromium and live provider credentials were unavailable in the 
 ## Transition rule
 
 A phase starts only after an exact written plan is approved. It completes only after implementation, audit, regression tests, documentation synchronization, GitHub push, and a completion entry. Failed criteria keep the phase open.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

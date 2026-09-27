@@ -41,3 +41,18 @@ that provider and should be reviewed before use.
 
 This document describes the current implementation. It is not a legal privacy
 policy or a guarantee about third-party provider practices.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

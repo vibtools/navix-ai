@@ -1,6 +1,6 @@
-# Navix AI v1.0.0.2.2
+# Navix AI v1.0.0.2.3
 
-Navix AI v1.0.0.2.2 is the scoped Website Intelligence and browser-automation stabilization release built on the completed Phase 01–04 baseline.
+Navix AI v1.0.0.2.3 is the scoped Website Intelligence and browser-automation stabilization release built on the completed Phase 01–04 baseline.
 
 ## Included
 
@@ -14,11 +14,11 @@ Navix AI v1.0.0.2.2 is the scoped Website Intelligence and browser-automation st
 
 ## Compatibility and safety
 
-Existing storage identifiers, sessions, history, providers, settings, capability controls, approval policy, trust boundaries, and least-privilege manifest design are retained. The Chrome-compatible version is `1.0.0.3`; the product version name and Git tag are `v1.0.0.2.2`.
+Existing storage identifiers, sessions, history, providers, settings, capability controls, approval policy, trust boundaries, and least-privilege manifest design are retained. The Chrome-compatible version is `1.0.0.3`; the product version name and Git tag are `v1.0.0.2.3`.
 
 ## Artifact
 
-- File: `navix-ai-v1.0.0.2.2.zip`
+- File: `navix-ai-v1.0.0.2.3.zip`
 - Files: 45
 - Size: 9,518,960 bytes
 - SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`
@@ -31,7 +31,22 @@ The deterministic repository gates pass: lint, 80 focused tests, production buil
 
 ## Install
 
-1. Download and extract `navix-ai-v1.0.0.2.2.zip`.
+1. Download and extract `navix-ai-v1.0.0.2.3.zip`.
 2. Open `chrome://extensions`, enable Developer mode, and choose **Load unpacked**.
 3. Select the extracted folder.
 4. Configure a provider, open Navix AI, and explicitly grant page access when requested.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

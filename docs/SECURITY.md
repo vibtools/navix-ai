@@ -1,6 +1,6 @@
 # Security
 
-> Phase 04 controls and the scoped `v1.0.0.2.2` follow-on are automated-gate verified: least privilege, explicit current-site/all-sites consent, bounded semantic/accessibility page context, secret handling, untrusted-content boundaries, local OCR executable assets, and deterministic extension packaging. Final runtime security acceptance still requires installed-Chrome, live-provider/OCR, upgrade, accessibility/privacy, and store evidence.
+> Phase 04 controls and the scoped `v1.0.0.2.3` follow-on are automated-gate verified: least privilege, explicit current-site/all-sites consent, bounded semantic/accessibility page context, secret handling, untrusted-content boundaries, local OCR executable assets, and deterministic extension packaging. Final runtime security acceptance still requires installed-Chrome, live-provider/OCR, upgrade, accessibility/privacy, and store evidence.
 
 ## Principles
 
@@ -45,3 +45,18 @@ Users should always know:
 - Tool names and argument schemas are validated before dispatch, stale-context refresh is bounded, and unverified navigation timeout is reported as failure.
 
 Remaining external evidence: installed Chrome permission/action/injection testing; credentialed live provider and image requests; OCR runtime/network behavior; accessibility and privacy review; storage upgrade/restart/quota cases; and store-package validation. Automated bundle budgets, 80 focused tests, extension-only packaging, checksum verification, and server smoke gates pass.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

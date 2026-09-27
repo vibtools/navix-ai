@@ -5,8 +5,8 @@ const STORE_NAME = 'settings';
 const LOCAL_PREFIX = 'copilot_';
 
 function storageError(code, message, cause) {
-  const normalizedMessage = String(message || '').toLowerCase();
-  if (normalizedMessage.includes('quota')) {
+  const checkStr = String(message || '') + ' ' + String(cause?.message || cause?.name || '');
+  if (checkStr.toLowerCase().includes('quota')) {
     return new AppError(ErrorCode.STORAGE_QUOTA_EXCEEDED, 'Local storage quota was exceeded.', { cause });
   }
   return new AppError(code, message, { cause });
@@ -119,7 +119,11 @@ export function createAppStorage(environment = globalThis) {
       throw new AppError(ErrorCode.STORAGE_UNAVAILABLE, 'Local storage is unavailable.');
     }
     for (const [key, value] of Object.entries(data)) {
-      environment.localStorage?.setItem(`${LOCAL_PREFIX}${key}`, JSON.stringify(value));
+      if (value === undefined) {
+        environment.localStorage?.removeItem(`${LOCAL_PREFIX}${key}`);
+      } else {
+        environment.localStorage?.setItem(`${LOCAL_PREFIX}${key}`, JSON.stringify(value));
+      }
     }
   };
 
@@ -231,13 +235,26 @@ export function createAppStorage(environment = globalThis) {
         callback(parsed);
       };
       const localListener = (event) => callback(event.detail || {});
+      const windowStorageListener = (event) => {
+        if (event.key && event.key.startsWith(LOCAL_PREFIX)) {
+          const key = event.key.slice(LOCAL_PREFIX.length);
+          try {
+            const parsedValue = event.newValue ? JSON.parse(event.newValue) : undefined;
+            callback({ [key]: parsedValue });
+          } catch {
+            // Ignore cross-tab parse failures
+          }
+        }
+      };
 
       environment.chrome?.storage?.onChanged?.addListener?.(chromeListener);
       environment.addEventListener?.('app-storage-changed', localListener);
+      environment.addEventListener?.('storage', windowStorageListener);
 
       return () => {
         environment.chrome?.storage?.onChanged?.removeListener?.(chromeListener);
         environment.removeEventListener?.('app-storage-changed', localListener);
+        environment.removeEventListener?.('storage', windowStorageListener);
       };
     }
   };

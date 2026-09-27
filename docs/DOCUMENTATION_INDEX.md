@@ -13,7 +13,7 @@
 | `TRACEABILITY_MATRIX.md` | Finding-to-phase-to-test mapping |
 | `DEVELOPMENT_GOVERNANCE.md` | Scope, approval, GitHub, regression, and release rules |
 | `PHASE04_QA_MATRIX.md` | Automated and manual release-candidate acceptance gates |
-| `V1.0.0.2.2_VERIFICATION_REPORT.md` | Scoped findings, root causes, fixes, deterministic evidence, artifact identity, and explicit runtime limits |
+| `V1.0.0.2.3_VERIFICATION_REPORT.md` | Scoped findings, root causes, fixes, deterministic evidence, artifact identity, and explicit runtime limits |
 
 ## Existing product documents
 
@@ -21,4 +21,19 @@
 
 Use `ACTUAL_IMPLEMENTATION_STATUS.md` for current feature truth, `PHASE_COMPLETION_LOG.md` for progress, and `PRODUCTION_ROADMAP.md` for future scope. A specification or roadmap entry is not implementation evidence.
 
-Last synchronized program event: **v1.0.0.2.2 scoped forensic closure and release artifact, 2026-09-06 UTC**.
+Last synchronized program event: **v1.0.0.2.3 scoped forensic closure and release artifact, 2026-09-06 UTC**.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

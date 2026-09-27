@@ -51,3 +51,18 @@ Extension build/ZIP generation is restored behind the lint/test/build/audit/pack
 `APPROVE NAVIX-AI PHASE-XX IMPLEMENTATION — SCOPE LOCKED`
 
 Only the exact command for the currently proposed phase authorizes work. One phase never authorizes another or a material scope expansion.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

@@ -52,7 +52,7 @@ Every phase must compare affected behavior with this baseline. A phase cannot co
 
 When documents conflict, authority is: verified source/test evidence; this freeze plus approved phase scope; `ACTUAL_IMPLEMENTATION_STATUS.md`; forensic/traceability records; then roadmap and descriptive documents. Unverified claims never override verified behavior.
 
-## v1.0.0.2.2 next-baseline freeze
+## v1.0.0.2.3 next-baseline freeze
 
 The original Phase 01–04 ancestry and compatibility contracts above remain the historical baseline. The approved follow-on runtime implementation is frozen at source commit `73c5acd1742853f0556c1697269310c0c1d35096` with these additional locked behaviors:
 
@@ -65,10 +65,25 @@ The original Phase 01–04 ancestry and compatibility contracts above remain the
 
 Frozen artifact identity:
 
-- Product/tag: `v1.0.0.2.2`
+- Product/tag: `v1.0.0.2.3`
 - Chrome manifest version: `1.0.0.3`
 - Files: 45
 - Size: 9,518,960 bytes
 - SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`
 
 Deterministic acceptance is frozen as lint pass, 80/80 focused tests, production build pass, zero high/critical production dependency vulnerabilities, cross-runtime byte-stable packaging, package verification pass, and server smoke pass. Installed-Chrome, live-provider/OCR, accessibility, upgrade, and store checks are not silently promoted to passes and remain recorded in the verification report.
+
+
+---
+
+## 🏢 About the Author & Company
+
+**Navix AI** is an open-source project by **[Vib Tools](https://vib.tools/)**, a software organization building practical desktop applications, automation tooling, and developer utilities for real workflows.
+
+- **Author / Maintainer:** Md Nurnobi ([@victorsteele](https://github.com/victorsteele))
+- **Company:** Vib Tools
+- **Website:** [vib.tools](https://vib.tools/)
+- **GitHub Organization:** [@vibtools](https://github.com/vibtools)
+- **Email:** hello@vib.tools
+- **Location:** 5660 Kochakata, Nageswari, Kurigram, Rangpur, Bangladesh
+

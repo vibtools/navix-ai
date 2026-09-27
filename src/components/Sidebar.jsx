@@ -1,5 +1,5 @@
 import React, { lazy, Suspense, useState, useEffect, useRef } from 'react';
-import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, ChevronUp, Check, Zap, Server, Box, Loader2, Pencil, Save, Download, Puzzle, MessageSquare, Search, MoreVertical, FileText, Image as ImageIcon, SlidersHorizontal, Globe, Languages, SquarePen, LayoutGrid, Code2, Info, Copy } from 'lucide-react';
+import { Send, Settings, Sparkles, User, Bot, X, Trash2, Square, BrainCircuit, Mic, Paperclip, Scissors, BookOpen, Settings2, Clock, Plus, Menu, RefreshCw, ChevronDown, ChevronUp, Check, Zap, Server, Box, Loader2, Pencil, Save, Download, Puzzle, MessageSquare, Search, MoreVertical, FileText, Image as ImageIcon, SlidersHorizontal, Globe, Languages, SquarePen, LayoutGrid, Code2, Info, Copy, AlertTriangle } from 'lucide-react';
 import { AppStorage } from '../core/appStorage.js';
 import { createRequestId, createSessionId } from '../core/sessionProtocol.js';
 import { CredentialVault, collectLegacyCredentials, credentialsFromConfigs, hydrateProviderConfigs, publicProviderConfigs } from '../core/credentialVault.js';
@@ -46,7 +46,7 @@ function resolvePrimaryProviderAttempt(settings, configs = []) {
     || toProviderAttempt(enabledModelConfigs(configs)[0]);
 }
 
-const CopyButton = ({ text, title = 'Copy' }) => {
+const CopyButton = ({ text, title = 'Copy', className = '' }) => {
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -72,10 +72,10 @@ const CopyButton = ({ text, title = 'Copy' }) => {
   return (
     <button
       onClick={handleCopy}
-      className="flex items-center gap-1.5 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded transition-colors self-start"
+      className={`flex items-center gap-1.5 p-1 rounded transition-colors self-start ${className || 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/50'}`}
       title={title}
     >
-      {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
     </button>
   );
 };
@@ -453,6 +453,7 @@ export default function Sidebar() {
       if (Object.keys(runtimeCredentials).length === 0 && Object.keys(legacyCredentials).length > 0) {
         runtimeCredentials = legacyCredentials;
         await CredentialVault.writeSession(runtimeCredentials);
+        AppStorage.remove(['geminiApiKey', 'openAiApiKey', 'hfApiKey']).catch(() => {});
       }
       credentialsRef.current = runtimeCredentials;
       configs = hydrateProviderConfigs(configs, runtimeCredentials);
@@ -1368,7 +1369,7 @@ export default function Sidebar() {
       setChat((items) => [
         ...items,
         { role: 'user', text: userMessage },
-        { role: 'assistant', text: "⚠️ **Model API not configured!**\n\nPlease select an active model and configure its API key in the **Settings** before chatting." }
+        { role: 'assistant', type: 'config-error', text: "Model API not configured!" }
       ]);
       if (!actualOverrideMessage) setMessage('');
       return;
@@ -2568,11 +2569,21 @@ return (
                   {item.role === 'user' ? (
                     <div className="flex flex-col gap-1.5">
                       <span>{item.text}</span>
-                      <div className="flex justify-end gap-0.5 border-t border-white/10 pt-1">
-                        <CopyButton text={item.text} title="Copy prompt" />
-                        <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3.5 w-3.5" /></button>
-                        <button type="button" onClick={() => editPrompt(item.text)} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" title="Edit prompt"><Pencil className="h-3.5 w-3.5" /></button>
+                      <div className="flex justify-end gap-0.5 mt-0.5 opacity-80 hover:opacity-100 transition-opacity">
+                        <CopyButton text={item.text} title="Copy prompt" className="text-slate-400 hover:bg-white/10 hover:text-white" />
+                        <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3 w-3" /></button>
+                        <button type="button" onClick={() => editPrompt(item.text)} className="rounded p-1 text-slate-400 hover:bg-white/10 hover:text-white" title="Edit prompt"><Pencil className="h-3 w-3" /></button>
                       </div>
+                    </div>
+                  ) : item.type === 'config-error' ? (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5 text-amber-600 font-semibold text-[13px]">
+                        <AlertTriangle className="w-4 h-4" />
+                        Model API not configured!
+                      </div>
+                      <p className="text-[12px] text-slate-600">
+                        Please select an active model and configure its API key in the <button onClick={() => setShowSettings(true)} className="font-semibold underline hover:text-blue-600 focus:outline-none">Settings</button> before chatting.
+                      </p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1.5">
@@ -2593,22 +2604,22 @@ return (
                           </Suspense>
                         )}
                       </div>
-                      <div className="flex justify-end pt-1 mt-1 border-t border-slate-200/60">
+                      <div className="flex justify-end gap-0.5 mt-0.5 opacity-80 hover:opacity-100 transition-opacity">
                         {item.isError && (
                           <button 
                             type="button" 
                             onClick={() => retryAssistantMessageAt(index)} 
                             disabled={loading} 
-                            className="flex items-center gap-1.5 mr-auto rounded px-2.5 py-1 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-40 font-medium text-[11px] transition-colors" 
+                            className="flex items-center gap-1.5 mr-auto rounded px-2 py-0.5 bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800 disabled:opacity-40 font-medium text-[10px] transition-colors" 
                             title="Restart specific task">
                             <RefreshCw className="h-3 w-3" />
                             Retry Task
                           </button>
                         )}
                         {!item.isError && (
-                          <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3.5 w-3.5" /></button>
+                          <button type="button" onClick={() => retryMessageAt(index)} disabled={loading} className="rounded p-1 text-slate-400 hover:bg-slate-200/50 hover:text-slate-600 disabled:opacity-40" title="Retry prompt"><RefreshCw className="h-3 w-3" /></button>
                         )}
-                        <CopyButton text={item.text} title="Copy response" />
+                        <CopyButton text={item.text} title="Copy response" className="text-slate-400 hover:bg-slate-200/50 hover:text-slate-600" />
                       </div>
                     </div>
                   )}
