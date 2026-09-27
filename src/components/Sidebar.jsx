@@ -1263,7 +1263,7 @@ export default function Sidebar() {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Your browser does not support voice input.");
+      window.alert("Your browser does not support voice input.");
       return;
     }
 
