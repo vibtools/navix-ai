@@ -643,7 +643,6 @@ export default function Sidebar() {
   const startNewChat = () => {
     setChat([]);
     setCurrentSessionId(null);
-    setSelectedModel(defaultModel);
     AppStorage.set({ chatHistory: [], currentSessionId: null, selectedModel: defaultModel });
     setShowHistory(false);
   };
@@ -668,7 +667,6 @@ export default function Sidebar() {
     if (currentSessionId === id) {
       setChat([]);
       setCurrentSessionId(null);
-      setSelectedModel(defaultModel);
       AppStorage.set({ chatHistory: [], currentSessionId: null, selectedModel: defaultModel });
     }
   };
@@ -677,7 +675,6 @@ export default function Sidebar() {
     setChatSessions([]);
     setChat([]);
     setCurrentSessionId(null);
-    setSelectedModel(defaultModel);
     AppStorage.set({ chatSessions: [], chatHistory: [], currentSessionId: null, selectedModel: defaultModel });
     setShowHistory(false);
   };
@@ -1980,7 +1977,6 @@ export default function Sidebar() {
                       setDefaultModel(val); 
                       AppStorage.set({ defaultModel: val }); 
                       if (chat.length === 0) {
-                        setSelectedModel(val);
                         AppStorage.set({ selectedModel: val });
                       }
                     }}
