@@ -4,9 +4,9 @@
   <p><strong>Your fully autonomous AI web agent and ultimate browser assistant.</strong></p>
 
   <p>
-    <a href="https://github.com/victorsteele/navix-ai/releases"><img src="https://img.shields.io/github/v/release/victorsteele/navix-ai?style=for-the-badge&color=007AFF" alt="Latest Release" /></a>
-    <a href="https://github.com/victorsteele/navix-ai/blob/master/LICENSE"><img src="https://img.shields.io/github/license/victorsteele/navix-ai?style=for-the-badge&color=28A745" alt="License" /></a>
-    <a href="https://github.com/victorsteele/navix-ai/stargazers"><img src="https://img.shields.io/github/stars/victorsteele/navix-ai?style=for-the-badge&color=FFD700" alt="Stars" /></a>
+    <a href="https://github.com/vibtools/navix-ai/releases"><img src="https://img.shields.io/github/v/release/vibtools/navix-ai?style=for-the-badge&color=007AFF" alt="Latest Release" /></a>
+    <a href="https://github.com/vibtools/navix-ai/blob/main/LICENSE"><img src="https://img.shields.io/github/license/vibtools/navix-ai?style=for-the-badge&color=28A745" alt="License" /></a>
+    <a href="https://github.com/vibtools/navix-ai/stargazers"><img src="https://img.shields.io/github/stars/vibtools/navix-ai?style=for-the-badge&color=FFD700" alt="Stars" /></a>
   </p>
 
   <br />
