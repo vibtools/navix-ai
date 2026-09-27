@@ -39,8 +39,8 @@ This matrix separates existing handlers from required production behavior. “Pr
 | `PROVIDER_UNAVAILABLE` | Normalize network/local-provider/timeout failures with safe retry classification | 02 implemented |
 | `PROVIDER_AUTH_FAILED` | Report invalid/missing credentials without upstream bodies | 02-03 implemented |
 | `PROVIDER_RATE_LIMITED` | Honor bounded retry metadata; prevent duplicate output/action | 02 implemented |
-| `PROVIDER_MODEL_UNSUPPORTED` | Use bounded enabled-only fallback before output/action; otherwise reject without simulated success | 02/v1.0.0.2.0 implemented |
-| `PROVIDER_CAPABILITY_UNSUPPORTED` | Use bounded enabled-only fallback before output/action; otherwise reject unsupported screenshot/tool behavior | 02/v1.0.0.2.0 implemented |
+| `PROVIDER_MODEL_UNSUPPORTED` | Use bounded enabled-only fallback before output/action; otherwise reject without simulated success | 02/v1.0.0.2.1 implemented |
+| `PROVIDER_CAPABILITY_UNSUPPORTED` | Use bounded enabled-only fallback before output/action; otherwise reject unsupported screenshot/tool behavior | 02/v1.0.0.2.1 implemented |
 | `PROVIDER_RESPONSE_INVALID` | Reject malformed JSON and empty/invalid chat responses | 02 implemented |
 | `STREAM_PROTOCOL_ERROR` | Buffer fragmented events and surface malformed records | 02 implemented |
 | `TOOL_CALL_INVALID` | Validate tool name/schema/arguments before execution | 02-03 implemented |
@@ -50,7 +50,7 @@ This matrix separates existing handlers from required production behavior. “Pr
 | `ACTION_DENIED` | Stop the proposed action without fallback or simulated success | 03 implemented |
 | `UNSAFE_URL` | Reject dangerous/unsupported protocols, credentials, and invalid navigation targets | 03 implemented |
 | `UNTRUSTED_CONTENT_BLOCKED` | Preserve trusted policy and bounded external-data treatment | 03 implemented |
-| `PERMISSION_REQUIRED` | Offer current-origin or all-HTTP(S) grant with user context; reuse an existing all-sites grant | 03/v1.0.0.2.0 implemented |
+| `PERMISSION_REQUIRED` | Offer current-origin or all-HTTP(S) grant with user context; reuse an existing all-sites grant | 03/v1.0.0.2.1 implemented |
 | `FILE_TYPE_UNSUPPORTED` | Reject before parsing without damaging chat state | 03 implemented |
 | `FILE_TOO_LARGE` | Enforce file/count/page/text limits before heavy parsing/OCR | 03 implemented; performance gate 04 |
 | `CAPABILITY_UNAVAILABLE` | Report disabled/unsupported behavior; never simulate success | 03 implemented |

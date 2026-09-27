@@ -52,7 +52,7 @@ Every phase must compare affected behavior with this baseline. A phase cannot co
 
 When documents conflict, authority is: verified source/test evidence; this freeze plus approved phase scope; `ACTUAL_IMPLEMENTATION_STATUS.md`; forensic/traceability records; then roadmap and descriptive documents. Unverified claims never override verified behavior.
 
-## v1.0.0.2.0 next-baseline freeze
+## v1.0.0.2.1 next-baseline freeze
 
 The original Phase 01–04 ancestry and compatibility contracts above remain the historical baseline. The approved follow-on runtime implementation is frozen at source commit `73c5acd1742853f0556c1697269310c0c1d35096` with these additional locked behaviors:
 
@@ -65,7 +65,7 @@ The original Phase 01–04 ancestry and compatibility contracts above remain the
 
 Frozen artifact identity:
 
-- Product/tag: `v1.0.0.2.0`
+- Product/tag: `v1.0.0.2.1`
 - Chrome manifest version: `1.0.0.3`
 - Files: 45
 - Size: 9,518,960 bytes

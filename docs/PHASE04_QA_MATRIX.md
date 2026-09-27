@@ -16,9 +16,9 @@
 
 ## Release controls
 
-- Product version: `1.0.0.2.0`
+- Product version: `1.0.0.2.1`
 - Chrome manifest version: `1.0.0.3`
-- Expected Git tag after approval: `v1.0.0.2.0`
+- Expected Git tag after approval: `v1.0.0.2.1`
 - License: MIT
 - Candidate ZIP SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`
 - Artifact must contain no server bundle, source map, package manifest, local
@@ -35,7 +35,7 @@ Node tests:
 | Area | Required check | Result field |
 | --- | --- | --- |
 | Install | Load the ZIP unpacked; side panel opens; manifest has no broad required hosts | Release operator records pass/fail |
-| Upgrade | Install v1.0.0.1.2/v1.0.0.1.3 data, install v1.0.0.2.0, verify settings/history/session migration | Release operator records pass/fail |
+| Upgrade | Install v1.0.0.1.2/v1.0.0.1.3 data, install v1.0.0.2.1, verify settings/history/session migration | Release operator records pass/fail |
 | Providers | Gemini, OpenAI, Hugging Face, and Ollama success/error/cancellation paths | Release operator records pass/fail |
 | Browser actions | Read-only action, sensitive approval, denial, replay, stale target, and navigation permission | Release operator records pass/fail |
 | Trust boundary | Adversarial page text/file/OCR content cannot approve actions or create unsafe links | Release operator records pass/fail |
@@ -48,6 +48,6 @@ runtime row blocks full runtime/store acceptance and must be documented. An
 explicitly approved GitHub source release may publish the deterministic artifact
 only when unavailable runtime rows and limitations are disclosed in its notes.
 
-## v1.0.0.2.0 deterministic evidence
+## v1.0.0.2.1 deterministic evidence
 
 The scoped follow-on passed lint, 80/80 focused tests, production build and bundle budgets, production high-severity dependency audit, 45-file extension-only packaging, SHA-256/release-manifest verification, and server smoke. CI/local comparison exposed both container and generated-CSS inputs: the packager now uses fixed-metadata stored entries, Tailwind scans only `src/`, and two consecutive fresh packages produced the identical digest above. The unavailable installed-Chrome and credentialed-provider rows remain visibly unclaimed.

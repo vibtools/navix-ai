@@ -96,7 +96,7 @@ async function executeTool(name, args, signal, options = {}) {
     target = inspection.target || {};
   }
   const policy = classifyBrowserAction(action, { target, currentUrl: tab.url || '' });
-  if (policy.requiresConfirmation) {
+  if (policy.requiresConfirmation && !options.alwaysApproveActions) {
     if (!options.confirmAction) throw new Error('This action requires interactive approval.');
     const destination = action.args.url || target.href || target.formAction || '';
     await options.confirmAction({
@@ -256,6 +256,7 @@ async function handleAIRequestStream(request, lifecycle, options = {}) {
         refreshStale: !staleRefreshUsed,
         searchEngine: request.searchEngine,
         searchEnabled: request.searchEnabled,
+        alwaysApproveActions: request.alwaysApproveActions,
         requestId: request.requestId,
         sessionId: request.sessionId,
         confirmAction: options.confirmAction

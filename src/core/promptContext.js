@@ -12,6 +12,10 @@ export function buildPromptContext(request) {
   const customInstruction = request.customInstructionsEnabled === false ? '' : clean(request.customInstruction);
   const responseLanguage = clean(request.responseLanguage);
 
+  const now = new Date();
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  instructions.push(`[TEMPORAL CONTEXT]\nCurrent Date and Time: ${now.toLocaleString('en-US')} (${timeZone}). Always assume this is the present time when fulfilling requests.`);
+
   if (systemPrompt) instructions.push(`[USER SYSTEM PROMPT]\n${systemPrompt}`);
   if (customInstruction) instructions.push(`[CUSTOM INSTRUCTIONS]\n${customInstruction}`);
   if (responseLanguage && responseLanguage !== 'Auto') {

@@ -13,7 +13,7 @@
 | `TRACEABILITY_MATRIX.md` | Finding-to-phase-to-test mapping |
 | `DEVELOPMENT_GOVERNANCE.md` | Scope, approval, GitHub, regression, and release rules |
 | `PHASE04_QA_MATRIX.md` | Automated and manual release-candidate acceptance gates |
-| `V1.0.0.2.0_VERIFICATION_REPORT.md` | Scoped findings, root causes, fixes, deterministic evidence, artifact identity, and explicit runtime limits |
+| `V1.0.0.2.1_VERIFICATION_REPORT.md` | Scoped findings, root causes, fixes, deterministic evidence, artifact identity, and explicit runtime limits |
 
 ## Existing product documents
 
@@ -21,4 +21,4 @@
 
 Use `ACTUAL_IMPLEMENTATION_STATUS.md` for current feature truth, `PHASE_COMPLETION_LOG.md` for progress, and `PRODUCTION_ROADMAP.md` for future scope. A specification or roadmap entry is not implementation evidence.
 
-Last synchronized program event: **v1.0.0.2.0 scoped forensic closure and release artifact, 2026-09-06 UTC**.
+Last synchronized program event: **v1.0.0.2.1 scoped forensic closure and release artifact, 2026-09-06 UTC**.

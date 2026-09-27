@@ -2,7 +2,7 @@
 
 > This file states product goals, not completion evidence. Use [Actual Implementation Status](ACTUAL_IMPLEMENTATION_STATUS.md) for verified working, partial, prompt-only/demo, and missing capabilities. Production work is controlled by the [four-phase roadmap](PRODUCTION_ROADMAP.md).
 
-Phases 01-04 plus the scoped `v1.0.0.2.0` follow-on harden the product without redesigning the existing UI/UX. Session/storage/cancellation integrity, deterministic gates, unified providers, exact sensitive-action approval, untrusted-content boundaries, credential lifecycle, least-privilege page access, consent, real data/artifact/generator/email/image engines, lazy loading, bundle budgets, extension-only packaging, Website Intelligence, explicit site grants, multi-enabled model configurations, stable live chat activity, and strengthened browser targeting are implemented and automated-gate verified. Installed-Chrome/live-provider/OCR E2E, accessibility, upgrade, and store acceptance remain external runtime gates.
+Phases 01-04 plus the scoped `v1.0.0.2.1` follow-on harden the product without redesigning the existing UI/UX. Session/storage/cancellation integrity, deterministic gates, unified providers, exact sensitive-action approval, untrusted-content boundaries, credential lifecycle, least-privilege page access, consent, real data/artifact/generator/email/image engines, lazy loading, bundle budgets, extension-only packaging, Website Intelligence, explicit site grants, multi-enabled model configurations, stable live chat activity, and strengthened browser targeting are implemented and automated-gate verified. Installed-Chrome/live-provider/OCR E2E, accessibility, upgrade, and store acceptance remain external runtime gates.
 
 ## Version 1 Goals
 

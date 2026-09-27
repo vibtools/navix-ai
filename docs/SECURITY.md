@@ -1,6 +1,6 @@
 # Security
 
-> Phase 04 controls and the scoped `v1.0.0.2.0` follow-on are automated-gate verified: least privilege, explicit current-site/all-sites consent, bounded semantic/accessibility page context, secret handling, untrusted-content boundaries, local OCR executable assets, and deterministic extension packaging. Final runtime security acceptance still requires installed-Chrome, live-provider/OCR, upgrade, accessibility/privacy, and store evidence.
+> Phase 04 controls and the scoped `v1.0.0.2.1` follow-on are automated-gate verified: least privilege, explicit current-site/all-sites consent, bounded semantic/accessibility page context, secret handling, untrusted-content boundaries, local OCR executable assets, and deterministic extension packaging. Final runtime security acceptance still requires installed-Chrome, live-provider/OCR, upgrade, accessibility/privacy, and store evidence.
 
 ## Principles
 

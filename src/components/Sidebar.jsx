@@ -217,7 +217,7 @@ export default function Sidebar() {
   const [defaultModel, setDefaultModel] = useState('gemini');
   const [autoModelSwitch, setAutoModelSwitch] = useState(false);
   const [dataAnalysis, setDataAnalysis] = useState(false);
-  const [searchEnabled, setSearchEnabled] = useState(false);
+  const [searchEnabled, setSearchEnabled] = useState(true);
   const [searchEngine, setSearchEngine] = useState('google');
   
   const [pluginNameGenerator, setPluginNameGenerator] = useState(false);
@@ -476,7 +476,12 @@ export default function Sidebar() {
       if (result.defaultModel !== undefined) setDefaultModel(result.defaultModel);
       if (result.autoModelSwitch !== undefined) setAutoModelSwitch(result.autoModelSwitch);
       if (result.dataAnalysis !== undefined) setDataAnalysis(result.dataAnalysis);
-      if (result.searchEnabled !== undefined) setSearchEnabled(result.searchEnabled);
+      if (result.searchEnabled !== undefined) {
+        setSearchEnabled(result.searchEnabled);
+      } else {
+        AppStorage.set({ searchEnabled: true });
+        setSearchEnabled(true);
+      }
       if (result.searchEngine !== undefined) setSearchEngine(result.searchEngine);
       
       if (result.pluginNameGenerator !== undefined) setPluginNameGenerator(result.pluginNameGenerator);
@@ -501,14 +506,14 @@ export default function Sidebar() {
         hfModel: result.hfModel || 'mistralai/Mistral-Nemo-Instruct-2407',
         ollamaUrl: result.ollamaUrl || 'http://localhost:11434',
         ollamaModel: result.ollamaModel || 'llama3',
-        selectedModel: result.selectedModel || (configs.find(c => c.isActive)?.provider || 'gemini'),
+        selectedModel: result.selectedModel || result.defaultModel || (configs.find(c => c.isActive)?.provider || 'gemini'),
         systemPrompt: result.systemPrompt !== undefined ? result.systemPrompt : 'You are a helpful and intelligent AI assistant. Provide clear, accurate, and concise responses.',
         customInstruction: result.customInstruction !== undefined ? result.customInstruction : 'Always format your responses using Markdown. Use code blocks for code snippets and lists for structured information.',
         tabSummaryInstruction: result.tabSummaryInstruction !== undefined ? result.tabSummaryInstruction : 'Please provide a concise summary of the current page context.',
         defaultModel: result.defaultModel || 'gemini',
         autoModelSwitch: result.autoModelSwitch || false,
         dataAnalysis: result.dataAnalysis || false,
-        searchEnabled: result.searchEnabled || false,
+        searchEnabled: result.searchEnabled !== undefined ? result.searchEnabled : true,
         searchEngine: result.searchEngine || 'google',
         pluginNameGenerator: result.pluginNameGenerator || false,
         pluginAddressGenerator: result.pluginAddressGenerator || false,
@@ -518,7 +523,8 @@ export default function Sidebar() {
         imageGenEnabled: result.imageGenEnabled || false,
         imageGenModel: result.imageGenModel || 'Nano Banana',
         customInstructionsEnabled: result.customInstructionsEnabled !== undefined ? result.customInstructionsEnabled : true,
-        responseLanguage: result.responseLanguage || 'Auto'
+        responseLanguage: result.responseLanguage || 'Auto',
+        alwaysApproveActions: result.alwaysApproveActions || false
       });
 
       if (result.chatHistory) {
@@ -637,7 +643,8 @@ export default function Sidebar() {
   const startNewChat = () => {
     setChat([]);
     setCurrentSessionId(null);
-    AppStorage.set({ chatHistory: [], currentSessionId: null });
+    setSelectedModel(defaultModel);
+    AppStorage.set({ chatHistory: [], currentSessionId: null, selectedModel: defaultModel });
     setShowHistory(false);
   };
 
@@ -661,7 +668,8 @@ export default function Sidebar() {
     if (currentSessionId === id) {
       setChat([]);
       setCurrentSessionId(null);
-      AppStorage.set({ chatHistory: [], currentSessionId: null });
+      setSelectedModel(defaultModel);
+      AppStorage.set({ chatHistory: [], currentSessionId: null, selectedModel: defaultModel });
     }
   };
 
@@ -669,7 +677,8 @@ export default function Sidebar() {
     setChatSessions([]);
     setChat([]);
     setCurrentSessionId(null);
-    AppStorage.set({ chatSessions: [], chatHistory: [], currentSessionId: null });
+    setSelectedModel(defaultModel);
+    AppStorage.set({ chatSessions: [], chatHistory: [], currentSessionId: null, selectedModel: defaultModel });
     setShowHistory(false);
   };
 
@@ -1187,16 +1196,16 @@ export default function Sidebar() {
           }
           fileData = { name: file.name, type: file.type, content: dataUrl, extractedText, isImage: true, isPdf: false };
         } else {
-          const [{ parseStructuredFile, structuredRowsToText }, { analyzeRows }, { groupEmailRows }] = await Promise.all([
+          const [{ parseStructuredFile, structuredRowsToText }, analysisModule, emailModule] = await Promise.all([
             import('../capabilities/structuredData.js'),
-            import('../capabilities/dataAnalysis.js'),
-            import('../capabilities/emailGrouper.js')
+            dataAnalysis ? import('../capabilities/dataAnalysis.js') : Promise.resolve(null),
+            pluginEmailGrouper ? import('../capabilities/emailGrouper.js') : Promise.resolve(null)
           ]);
           const arrayBuffer = extension === 'xlsx' ? await readFile(file, 'readAsArrayBuffer') : null;
           const text = extension === 'xlsx' ? '' : await readFile(file, 'readAsText');
           const rows = await parseStructuredFile({ name: file.name, text, arrayBuffer });
-          const analysis = analyzeRows(rows);
-          const emailGroups = groupEmailRows(rows);
+          const analysis = analysisModule ? analysisModule.analyzeRows(rows) : undefined;
+          const emailGroups = emailModule ? emailModule.groupEmailRows(rows) : undefined;
           fileData = {
             name: file.name, type: file.type, rows, analysis, emailGroups,
             content: structuredRowsToText(rows), isImage: false, isPdf: false
@@ -1227,7 +1236,7 @@ export default function Sidebar() {
     globalThis.requestAnimationFrame(() => {
       textareaRef.current?.focus();
       if (textareaRef.current) {
-        textareaRef.current.style.height = '64px';
+        textareaRef.current.style.height = '40px';
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
       }
     });
@@ -1453,7 +1462,8 @@ export default function Sidebar() {
         responseLanguage,
         capabilityContext: pluginContext.trim(),
         searchEnabled: Boolean(savedSettings.searchEnabled),
-        searchEngine: savedSettings.searchEngine || 'google'
+        searchEngine: savedSettings.searchEngine || 'google',
+        alwaysApproveActions: Boolean(savedSettings.alwaysApproveActions)
       };
 
       const handleError = (errorMsg) => {
@@ -1565,9 +1575,14 @@ export default function Sidebar() {
     executeRequest();
   }
 
-  const handleActionDecision = async (approved) => {
+  const handleActionDecision = async (approved, always = false) => {
     const confirmation = pendingConfirmation;
     if (!confirmation) return;
+    
+    if (approved && always) {
+      await AppStorage.set({ alwaysApproveActions: true });
+    }
+    
     let finalApproval = approved;
     if (approved && confirmation.requiredOrigin && confirmation.requiredOrigin !== confirmation.origin && chrome?.permissions) {
       try {
@@ -1634,20 +1649,23 @@ export default function Sidebar() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-4 mb-4 border-b border-slate-100 overflow-x-auto no-scrollbar">
-                     {['gemini', 'openai', 'huggingface', 'ollama'].map(p => (
-                        <button 
-                          key={p} 
-                          onClick={() => setSettingsTab(p)}
-                          className={`py-1.5 px-1 text-[12px] font-medium whitespace-nowrap transition-all capitalize border-b-2 -mb-[1px] ${
-                            settingsTab === p 
-                            ? 'border-slate-800 text-slate-800' 
-                            : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-                          }`}
-                        >
-                          {p === 'gemini' ? 'Gemini' : p === 'openai' ? 'OpenAI' : p === 'huggingface' ? 'Hugging Face' : 'Ollama'}
-                        </button>
-                     ))}
+                  <div className="relative mb-4 border-b border-slate-100 pb-4">
+                    <select
+                      value={settingsTab}
+                      onChange={(e) => {
+                        setSettingsTab(e.target.value);
+                        clearCurrentForm();
+                      }}
+                      className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 px-3 py-2 rounded-lg text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-slate-800/20 focus:border-slate-400 transition-all cursor-pointer shadow-sm"
+                    >
+                      <option value="gemini">Google Gemini</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="huggingface">Hugging Face</option>
+                      <option value="ollama">Ollama</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 pb-4 text-slate-500">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
                   </div>
 
                   {editingConfigId && (
@@ -1957,7 +1975,15 @@ export default function Sidebar() {
                   <label className="block text-[12px] font-medium text-slate-700 mb-1">Default Model</label>
                   <select 
                     value={defaultModel}
-                    onChange={(e) => { setDefaultModel(e.target.value); AppStorage.set({ defaultModel: e.target.value }); }}
+                    onChange={(e) => { 
+                      const val = e.target.value;
+                      setDefaultModel(val); 
+                      AppStorage.set({ defaultModel: val }); 
+                      if (chat.length === 0) {
+                        setSelectedModel(val);
+                        AppStorage.set({ selectedModel: val });
+                      }
+                    }}
                     className="w-full border border-slate-300 px-3 py-1.5 rounded-md text-[13px] bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all shadow-sm"
                   >
                     <option value="gemini">Gemini</option>
@@ -2340,124 +2366,46 @@ return (
               onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
               className="flex items-center gap-1.5 bg-transparent border border-transparent text-slate-700 hover:text-slate-900 text-[12px] font-semibold tracking-wide py-1 px-2 rounded-md cursor-pointer hover:bg-slate-100 transition-all focus:outline-none"
             >
-              {savedSettings.selectedModel === 'gemini' && <Sparkles className="w-3.5 h-3.5 text-blue-500" />}
-              {savedSettings.selectedModel === 'openai' && <Bot className="w-3.5 h-3.5 text-emerald-500" />}
-              {savedSettings.selectedModel === 'huggingface' && <Box className="w-3.5 h-3.5 text-amber-500" />}
-              {savedSettings.selectedModel === 'ollama' && <Server className="w-3.5 h-3.5 text-slate-500" />}
+              {(() => {
+                const active = activeConfigs.find(c => c.isActive);
+                if (active?.provider === 'gemini') return <Sparkles className="w-3.5 h-3.5 text-blue-500" />;
+                if (active?.provider === 'openai') return <Bot className="w-3.5 h-3.5 text-emerald-500" />;
+                if (active?.provider === 'huggingface') return <Box className="w-3.5 h-3.5 text-amber-500" />;
+                if (active?.provider === 'ollama') return <Server className="w-3.5 h-3.5 text-slate-500" />;
+                return <Bot className="w-3.5 h-3.5 text-slate-400" />;
+              })()}
               <span className="max-w-[140px] truncate text-left">
-                {savedSettings.selectedModel === 'gemini' ? savedSettings.geminiModel :
-                 savedSettings.selectedModel === 'openai' ? savedSettings.openAiModel :
-                 savedSettings.selectedModel === 'huggingface' ? savedSettings.hfModel :
-                 savedSettings.selectedModel === 'ollama' ? savedSettings.ollamaModel :
-                 'No Model Active'}
+                {activeConfigs.find(c => c.isActive)?.model || 'No Model Active'}
               </span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
             {isModelDropdownOpen && (
               <div className="absolute top-full left-0 mt-2 w-[240px] bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.1)] border border-slate-200 overflow-hidden z-50 flex flex-col">
-                <div className="max-h-[350px] overflow-y-auto custom-scrollbar p-1.5 space-y-2">
-                  
-                  {/* Gemini Group */}
-                  <div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 mb-0.5">
-                      <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Gemini</span>
+                <div className="max-h-[350px] overflow-y-auto custom-scrollbar p-1.5 space-y-0.5">
+                  {activeConfigs.length > 0 ? activeConfigs.map(config => (
+                    <button
+                      key={config.id}
+                      onClick={() => handleDropdownSelect(config.provider, config.model)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
+                        config.isActive ? 'bg-slate-100 text-slate-800 font-medium' : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 truncate max-w-[180px]">
+                        {config.provider === 'gemini' && <Sparkles className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
+                        {config.provider === 'openai' && <Bot className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+                        {config.provider === 'huggingface' && <Box className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                        {config.provider === 'ollama' && <Server className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />}
+                        <span className="truncate">{config.model}</span>
+                      </div>
+                      {config.isActive && <Check className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600" />}
+                    </button>
+                  )) : (
+                    <div className="px-2.5 py-3 text-center text-[12px] text-slate-500">
+                      No models configured. <br/>
+                      <button onClick={() => { setIsModelDropdownOpen(false); setShowSettings(true); }} className="mt-1 text-blue-600 font-medium hover:underline">Go to Settings</button>
                     </div>
-                    <div className="space-y-0.5">
-                      {geminiModelList.map(m => (
-                        <button
-                          key={m}
-                          onClick={() => handleDropdownSelect('gemini', m)}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
-                            savedSettings.selectedModel === 'gemini' && savedSettings.geminiModel === m ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${savedSettings.geminiApiKey ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`}></span>
-                            <span className="truncate">{m}</span>
-                          </div>
-                          {savedSettings.selectedModel === 'gemini' && savedSettings.geminiModel === m && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* OpenAI Group */}
-                  <div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 mb-0.5">
-                      <Bot className="w-3.5 h-3.5 text-emerald-500" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">OpenAI</span>
-                    </div>
-                    <div className="space-y-0.5">
-                      {['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'].map(m => (
-                        <button
-                          key={m}
-                          onClick={() => handleDropdownSelect('openai', m)}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
-                            savedSettings.selectedModel === 'openai' && savedSettings.openAiModel === m ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${savedSettings.openAiApiKey ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`}></span>
-                            <span className="truncate">{m}</span>
-                          </div>
-                          {savedSettings.selectedModel === 'openai' && savedSettings.openAiModel === m && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* HuggingFace Group */}
-                  <div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 mb-0.5">
-                      <Box className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">HuggingFace</span>
-                    </div>
-                    <div className="space-y-0.5">
-                      {['mistralai/Mistral-Nemo-Instruct-2407', 'meta-llama/Meta-Llama-3-8B-Instruct', 'google/gemma-2-9b-it', 'HuggingFaceH4/zephyr-7b-beta'].map(m => (
-                        <button
-                          key={m}
-                          onClick={() => handleDropdownSelect('huggingface', m)}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
-                            savedSettings.selectedModel === 'huggingface' && savedSettings.hfModel === m ? 'bg-amber-50 text-amber-700 font-medium' : 'text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 truncate max-w-[180px]">
-                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${savedSettings.hfApiKey ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`}></span>
-                            <span className="truncate">{m}</span>
-                          </div>
-                          {savedSettings.selectedModel === 'huggingface' && savedSettings.hfModel === m && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Ollama Group */}
-                  <div>
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 mb-0.5">
-                      <Server className="w-3.5 h-3.5 text-slate-500" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Ollama (Local)</span>
-                    </div>
-                    <div className="space-y-0.5">
-                      {['llama3', 'llama3.1', 'mistral', 'gemma', 'gemma2', 'phi3', 'qwen2'].map(m => (
-                        <button
-                          key={m}
-                          onClick={() => handleDropdownSelect('ollama', m)}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[12px] rounded-md transition-colors ${
-                            savedSettings.selectedModel === 'ollama' && savedSettings.ollamaModel === m ? 'bg-slate-100 text-slate-800 font-medium' : 'text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 truncate">
-                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${savedSettings.ollamaUrl ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300'}`}></span>
-                            <span className="truncate">{m}</span>
-                          </div>
-                          {savedSettings.selectedModel === 'ollama' && savedSettings.ollamaModel === m && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  
+                  )}
                 </div>
               </div>
             )}
@@ -3007,7 +2955,7 @@ return (
             onChange={(event) => {
               setMessage(event.target.value);
               // Auto-resize logic
-              event.target.style.height = '64px';
+              event.target.style.height = '40px';
               const scrollHeight = event.target.scrollHeight;
               event.target.style.height = `${Math.min(scrollHeight, 120)}px`;
             }}
@@ -3017,17 +2965,17 @@ return (
                 if (!loading && message.trim()) {
                   sendMessage();
                   // Reset height
-                  if (textareaRef.current) textareaRef.current.style.height = '64px';
+                  if (textareaRef.current) textareaRef.current.style.height = '40px';
                 }
               }
             }}
             rows={1}
             placeholder="Ask anything, @ models, / prompts"
-            className="w-full bg-transparent px-4 pt-3 pb-10 rounded-2xl text-[13px] focus:outline-none resize-none overflow-y-auto no-scrollbar"
-            style={{ height: '64px', minHeight: '64px', maxHeight: '120px' }}
+            className="w-full bg-transparent px-4 pt-3 pb-2 text-[13px] focus:outline-none resize-none overflow-y-auto no-scrollbar"
+            style={{ height: '40px', minHeight: '40px', maxHeight: '120px' }}
           />
           
-          <div className="absolute bottom-1 left-2 right-1.5 flex items-center justify-between">
+          <div className="px-2 pb-1.5 pt-0.5 flex items-center justify-between">
             <button 
               onClick={() => setThinkMode(!thinkMode)}
               className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-colors ${thinkMode ? 'bg-slate-800 text-white' : 'bg-slate-200/50 text-slate-600 hover:bg-slate-200'}`}
@@ -3061,7 +3009,7 @@ return (
                 <button 
                   onClick={() => {
                     sendMessage();
-                    if (textareaRef.current) textareaRef.current.style.height = '64px';
+                    if (textareaRef.current) textareaRef.current.style.height = '40px';
                   }}
                   disabled={!message.trim()}
                   className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-blue-600 transition-colors shadow-sm"

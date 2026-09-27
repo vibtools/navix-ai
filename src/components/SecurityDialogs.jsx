@@ -4,9 +4,9 @@ import { Check, KeyRound, LockKeyhole, ShieldAlert, X } from 'lucide-react';
 export function ActionConfirmationDialog({ confirmation, onDecision }) {
   const [busy, setBusy] = useState(false);
   if (!confirmation) return null;
-  const decide = async (approved) => {
+  const decide = async (approved, always = false) => {
     setBusy(true);
-    try { await onDecision(approved); } finally { setBusy(false); }
+    try { await onDecision(approved, always); } finally { setBusy(false); }
   };
   return (
     <div className="fixed inset-0 z-[80] bg-slate-950/50 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="action-confirmation-title" aria-busy={busy}>
@@ -28,6 +28,7 @@ export function ActionConfirmationDialog({ confirmation, onDecision }) {
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" disabled={busy} onClick={() => decide(false)} className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-50"><X className="h-3.5 w-3.5" />Deny</button>
           <button type="button" disabled={busy} onClick={() => decide(true)} className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"><Check className="h-3.5 w-3.5" />Approve once</button>
+          <button type="button" disabled={busy} onClick={() => decide(true, true)} className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"><Check className="h-3.5 w-3.5" />Approve always</button>
         </div>
       </div>
     </div>

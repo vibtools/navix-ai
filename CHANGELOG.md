@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.0.2.0 — Website intelligence and automation stabilization
+## v1.0.0.2.1 — Website intelligence and automation stabilization
 
 ### Website understanding and automation
 
@@ -23,7 +23,7 @@
 
 - Added focused tests for Website Intelligence, site permission decisions, multi-enabled model configuration, and model/capability fallback; 80/80 focused tests pass.
 - Lint, production build, production dependency audit, extension-only packaging, release verification, and server smoke gates pass.
-- Product version: `1.0.0.2.0`; Chrome manifest version: `1.0.0.3`; `version_name`: `v1.0.0.2.0`.
+- Product version: `1.0.0.2.1`; Chrome manifest version: `1.0.0.3`; `version_name`: `v1.0.0.2.1`.
 - Fixed release reproducibility after CI/local comparison: ZIP entries now use fixed-metadata storage and Tailwind scans only runtime `src/` files instead of documentation/workspace text.
 - Release ZIP SHA-256: `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528` (45 files, 9,518,960 bytes).
 - Installed-Chrome, credentialed provider/OCR, accessibility, upgrade, and store-submission checks remain explicit external runtime gates.

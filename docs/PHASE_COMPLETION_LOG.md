@@ -6,11 +6,11 @@
 | --- | --- |
 | Frozen source | `f8f0817c93fa2cfa4ccca85c2cad051a2ca43e6f` |
 | Total phases | 4 |
-| Completed | Phase 01–04 and scoped v1.0.0.2.0 implementation complete under deterministic gates |
+| Completed | Phase 01–04 and scoped v1.0.0.2.1 implementation complete under deterministic gates |
 | Active phase | External runtime/store acceptance |
 | Remaining | Installed-Chrome, live-provider/OCR, accessibility, upgrade, and store acceptance |
 | Build/ZIP workflow | Restored with lint/test/build/package/verify/smoke gates |
-| Production release | `v1.0.0.2.0` verified artifact prepared for the approved GitHub tag/release |
+| Production release | `v1.0.0.2.1` verified artifact prepared for the approved GitHub tag/release |
 
 ## Pre-phase governance record
 
@@ -21,7 +21,7 @@ The baseline was verified, the four-phase roadmap locked, findings registered, s
 | 01 — Deterministic Core and State Integrity | Completed | Build/state/storage/session/selector/cancellation integrity | 19/19 tests, lint/build/audit/smoke evidence recorded below |
 | 02 — Unified Providers and Agent Reliability | Completed | Unified reliable provider and tool behavior | 44/44 cumulative tests, lint/build/audit/smoke evidence recorded below |
 | 03 — Security and Real Capability Completion | Completed | Safe policy/privacy/secrets and truthful features | 66/66 cumulative tests, lint/build/audit/smoke evidence recorded below |
-| 04 — Performance, Full QA, and Release | Implementation complete | Optimized verified package and gated release | 71-test Phase 04 evidence plus the v1.0.0.2.0 follow-on record below |
+| 04 — Performance, Full QA, and Release | Implementation complete | Optimized verified package and gated release | 71-test Phase 04 evidence plus the v1.0.0.2.1 follow-on record below |
 
 ## Mandatory completion record
 
@@ -196,16 +196,16 @@ Release-candidate SHA-256: `721ed373700fa5796828cce8627108f15807f1c1f4a996e13ef5
 
 Remaining acceptance: installed Chrome permission/action/injection tests; credentialed provider/image and OCR runtime/network tests; accessibility; storage upgrade/restart/quota behavior; store-package validation; and explicit final tag/release approval. These are not inferred from compilation or focused Node tests.
 
-## v1.0.0.2.0 scoped follow-on record
+## v1.0.0.2.1 scoped follow-on record
 
 | Field | Record |
 | --- | --- |
-| Approval | User-requested Website Intelligence, permission/model/chat/automation repair and v1.0.0.2.0 release |
+| Approval | User-requested Website Intelligence, permission/model/chat/automation repair and v1.0.0.2.1 release |
 | Status | Implementation and deterministic verification complete — 2026-09-06 UTC |
 | Runtime source SHA | `73c5acd1742853f0556c1697269310c0c1d35096` |
 | Findings | F-023 and F-028 closed; F-024 through F-027 root causes closed with installed/live runtime gates retained |
 | Compatibility | Existing providers, settings, storage identifiers, sessions/history, capability controls, approval/trust policy, and least-privilege manifest architecture retained |
-| Version | Product/tag `v1.0.0.2.0`; Chrome manifest `1.0.0.3` |
+| Version | Product/tag `v1.0.0.2.1`; Chrome manifest `1.0.0.3` |
 
 Implemented behavior: bounded semantic/accessibility Website Intelligence; screenshot/DOM fusion; explicit current-site/all-sites permission recovery; multiple enabled model configurations with one primary; enabled-only capability-aware fallback; stable request-bound activity/stream/error UI; prompt/response actions; and open-shadow-root-aware, revalidated, result-checked browser actions.
 
@@ -220,7 +220,7 @@ Implemented behavior: bounded semantic/accessibility Website Intelligence; scree
 | `npm run verify:release` | Pass — identity, permissions, exclusions, checksum, and manifest |
 | `npm run smoke:server` | Pass — production UI and safe provider failure |
 
-Artifact: `navix-ai-v1.0.0.2.0.zip`, 9,518,960 bytes, SHA-256 `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`. Fixed-metadata stored ZIP entries and runtime-only Tailwind source scanning make the artifact byte-stable across clean runners.
+Artifact: `navix-ai-v1.0.0.2.1.zip`, 9,518,960 bytes, SHA-256 `40209512eb22e8ceac89994d1b477f7a3f38357a3588d4c1a835f88b13cfb528`. Fixed-metadata stored ZIP entries and runtime-only Tailwind source scanning make the artifact byte-stable across clean runners.
 
 External runtime limitations: no installed Chrome/Chromium executable and no live provider credentials were available in the audit environment. Installed-extension UI/action/permission, credentialed provider/image/OCR, accessibility, upgrade, and store checks therefore remain unclaimed.
 
